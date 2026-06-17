@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/categoria.dart';
 import 'db_init.dart';
 
@@ -36,7 +38,8 @@ class _SqfliteCatRepo implements _CatRepo {
   @override
   Future<int> atualizar(Categoria cat) async {
     final db = await getDatabase();
-    return db.update('categorias', cat.toMap(), where: 'id = ?', whereArgs: [cat.id]);
+    return db.update('categorias', cat.toMap(),
+        where: 'id = ?', whereArgs: [cat.id]);
   }
 
   @override
@@ -46,44 +49,83 @@ class _SqfliteCatRepo implements _CatRepo {
   }
 }
 
-class _MemoryCatRepo implements _CatRepo {
-  final List<Categoria> _lista = [];
-  int _nextId = 1;
+/// Repositório web: persiste categorias no localStorage via shared_preferences.
+class _WebCatRepo implements _CatRepo {
+  static const _key = 'categorias_data';
+  static const _nextIdKey = 'categorias_next_id';
 
-  _MemoryCatRepo() {
+  Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+
+  Future<List<Map<String, dynamic>>> _loadAll() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_key);
+    if (raw == null || raw.isEmpty) return [];
+    final List<dynamic> decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> _saveAll(List<Map<String, dynamic>> lista) async {
+    final prefs = await _prefs;
+    await prefs.setString(_key, jsonEncode(lista));
+  }
+
+  Future<int> _nextId() async {
+    final prefs = await _prefs;
+    final id = prefs.getInt(_nextIdKey) ?? 1;
+    await prefs.setInt(_nextIdKey, id + 1);
+    return id;
+  }
+
+  /// Garante que as categorias fixas existam no localStorage na primeira vez.
+  Future<void> _inicializarFixas() async {
+    final all = await _loadAll();
+    if (all.isNotEmpty) return;
+    final prefs = await _prefs;
+    int nextId = 1;
+    final lista = <Map<String, dynamic>>[];
     for (final c in _fixas) {
-      _lista.add(Categoria(
-        id: _nextId++,
-        nome: c['nome']!,
-        icone: c['icone']!,
-        fixa: false,
-      ));
+      lista.add({'id': nextId++, 'nome': c['nome'], 'icone': c['icone'], 'fixa': 0});
     }
+    await prefs.setString(_key, jsonEncode(lista));
+    await prefs.setInt(_nextIdKey, nextId);
   }
 
   @override
-  Future<List<Categoria>> buscarTodas() async => List.from(_lista);
+  Future<List<Categoria>> buscarTodas() async {
+    await _inicializarFixas();
+    final all = await _loadAll();
+    return all.map(Categoria.fromMap).toList();
+  }
 
   @override
   Future<Categoria> inserir(Categoria cat) async {
-    final novo = cat.copyWith(id: _nextId++);
-    _lista.add(novo);
+    await _inicializarFixas();
+    final id = await _nextId();
+    final novo = cat.copyWith(id: id);
+    final all = await _loadAll();
+    all.add(novo.toMap());
+    await _saveAll(all);
     return novo;
   }
 
   @override
   Future<int> atualizar(Categoria cat) async {
-    final i = _lista.indexWhere((c) => c.id == cat.id);
+    final all = await _loadAll();
+    final i = all.indexWhere((m) => m['id'] == cat.id);
     if (i == -1) return 0;
-    _lista[i] = cat;
+    all[i] = cat.toMap();
+    await _saveAll(all);
     return 1;
   }
 
   @override
   Future<int> excluir(int id) async {
-    final before = _lista.length;
-    _lista.removeWhere((c) => c.id == id);
-    return _lista.length < before ? 1 : 0;
+    final all = await _loadAll();
+    final before = all.length;
+    all.removeWhere((m) => m['id'] == id);
+    if (all.length == before) return 0;
+    await _saveAll(all);
+    return 1;
   }
 }
 
@@ -92,7 +134,7 @@ class CategoriaHelper {
   late final _CatRepo _repo;
 
   CategoriaHelper._() {
-    _repo = kIsWeb ? _MemoryCatRepo() : _SqfliteCatRepo();
+    _repo = kIsWeb ? _WebCatRepo() : _SqfliteCatRepo();
   }
 
   Future<List<Categoria>> buscarTodas() => _repo.buscarTodas();

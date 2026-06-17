@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/usuario.dart';
@@ -20,7 +21,8 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
     final sessao = await db.query('sessao', limit: 1);
     if (sessao.isEmpty) return null;
     final uid = sessao.first['usuario_id'] as int;
-    final rows = await db.query('usuarios', where: 'id = ?', whereArgs: [uid]);
+    final rows =
+        await db.query('usuarios', where: 'id = ?', whereArgs: [uid]);
     if (rows.isEmpty) return null;
     return Usuario.fromMap(rows.first);
   }
@@ -28,7 +30,8 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
   @override
   Future<Usuario?> buscarPorEmail(String email) async {
     final db = await getDatabase();
-    final rows = await db.query('usuarios', where: 'email = ?', whereArgs: [email]);
+    final rows = await db
+        .query('usuarios', where: 'email = ?', whereArgs: [email]);
     if (rows.isEmpty) return null;
     return Usuario.fromMap(rows.first);
   }
@@ -37,7 +40,11 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
   Future<Usuario> inserir(Usuario usuario) async {
     final db = await getDatabase();
     final id = await db.insert('usuarios', usuario.toMap());
-    return Usuario(id: id, nome: usuario.nome, email: usuario.email, senha: usuario.senha);
+    return Usuario(
+        id: id,
+        nome: usuario.nome,
+        email: usuario.email,
+        senha: usuario.senha);
   }
 
   @override
@@ -54,58 +61,79 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
   }
 }
 
-// ── Web: memória + SharedPreferences para sessão ──────────────────────────────
+// ── Web: localStorage via shared_preferences ──────────────────────────────────
 
 class _WebUsuarioRepo implements _UsuarioRepo {
-  final List<Usuario> _usuarios = [];
-  int _nextId = 1;
+  static const _usuariosKey = 'usuarios_data';
+  static const _nextIdKey   = 'usuarios_next_id';
+  static const _sessaoKey   = 'sessao_usuario_id';
+
+  Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+
+  Future<List<Map<String, dynamic>>> _loadAll() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_usuariosKey);
+    if (raw == null || raw.isEmpty) return [];
+    final List<dynamic> decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> _saveAll(List<Map<String, dynamic>> lista) async {
+    final prefs = await _prefs;
+    await prefs.setString(_usuariosKey, jsonEncode(lista));
+  }
+
+  Future<int> _nextId() async {
+    final prefs = await _prefs;
+    final id = prefs.getInt(_nextIdKey) ?? 1;
+    await prefs.setInt(_nextIdKey, id + 1);
+    return id;
+  }
 
   @override
   Future<Usuario?> buscarLogado() async {
-    final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getInt('sessao_id');
-    if (id == null) return null;
-    final email = prefs.getString('sessao_email');
-    final nome = prefs.getString('sessao_nome');
-    final senha = prefs.getString('sessao_senha');
-    if (email == null || nome == null || senha == null) return null;
-    return Usuario(id: id, nome: nome, email: email, senha: senha);
+    final prefs = await _prefs;
+    final uid = prefs.getInt(_sessaoKey);
+    if (uid == null) return null;
+    final all = await _loadAll();
+    final map = all.where((m) => m['id'] == uid).firstOrNull;
+    if (map == null) return null;
+    return Usuario.fromMap(map);
   }
 
   @override
   Future<Usuario?> buscarPorEmail(String email) async {
-    return _usuarios.where((u) => u.email == email).firstOrNull;
+    final all = await _loadAll();
+    final map =
+        all.where((m) => m['email'] == email).firstOrNull;
+    if (map == null) return null;
+    return Usuario.fromMap(map);
   }
 
   @override
   Future<Usuario> inserir(Usuario usuario) async {
+    final id = await _nextId();
     final novo = Usuario(
-      id: _nextId++,
-      nome: usuario.nome,
-      email: usuario.email,
-      senha: usuario.senha,
-    );
-    _usuarios.add(novo);
+        id: id,
+        nome: usuario.nome,
+        email: usuario.email,
+        senha: usuario.senha);
+    final all = await _loadAll();
+    all.add(novo.toMap());
+    await _saveAll(all);
     return novo;
   }
 
   @override
   Future<void> salvarSessao(int id) async {
-    final usuario = _usuarios.firstWhere((u) => u.id == id);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('sessao_id', id);
-    await prefs.setString('sessao_email', usuario.email);
-    await prefs.setString('sessao_nome', usuario.nome);
-    await prefs.setString('sessao_senha', usuario.senha);
+    final prefs = await _prefs;
+    await prefs.setInt(_sessaoKey, id);
   }
 
   @override
   Future<void> encerrarSessao() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('sessao_id');
-    await prefs.remove('sessao_email');
-    await prefs.remove('sessao_nome');
-    await prefs.remove('sessao_senha');
+    final prefs = await _prefs;
+    await prefs.remove(_sessaoKey);
   }
 }
 

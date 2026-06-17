@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/gasto.dart';
 import 'db_init.dart';
 
@@ -41,7 +43,8 @@ class _SqfliteRepo implements _GastoRepo {
   @override
   Future<int> atualizar(Gasto gasto) async {
     final db = await getDatabase();
-    return db.update('gastos', gasto.toMap(), where: 'id = ?', whereArgs: [gasto.id]);
+    return db.update('gastos', gasto.toMap(),
+        where: 'id = ?', whereArgs: [gasto.id]);
   }
 
   @override
@@ -51,46 +54,84 @@ class _SqfliteRepo implements _GastoRepo {
   }
 }
 
-class _MemoryRepo implements _GastoRepo {
-  final List<Gasto> _gastos = [];
-  int _nextId = 1;
+/// Repositório para web: persiste gastos no localStorage do navegador
+/// via shared_preferences, para os dados sobreviverem ao recarregamento da página.
+class _WebLocalStorageRepo implements _GastoRepo {
+  static const _keystoreKey = 'gastos_data';
+  static const _nextIdKey = 'gastos_next_id';
+
+  Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+
+  Future<List<Map<String, dynamic>>> _loadAll() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_keystoreKey);
+    if (raw == null || raw.isEmpty) return [];
+    final List<dynamic> decoded = jsonDecode(raw);
+    return decoded.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> _saveAll(List<Map<String, dynamic>> gastos) async {
+    final prefs = await _prefs;
+    await prefs.setString(_keystoreKey, jsonEncode(gastos));
+  }
+
+  Future<int> _nextId() async {
+    final prefs = await _prefs;
+    final id = (prefs.getInt(_nextIdKey) ?? 1);
+    await prefs.setInt(_nextIdKey, id + 1);
+    return id;
+  }
 
   @override
   Future<Gasto> inserir(Gasto gasto) async {
-    final novo = gasto.copyWith(id: _nextId++);
-    _gastos.add(novo);
+    final id = await _nextId();
+    final novo = gasto.copyWith(id: id);
+    final all = await _loadAll();
+    all.add(novo.toMap());
+    await _saveAll(all);
     return novo;
   }
 
   @override
   Future<List<Gasto>> buscarPorMes(int ano, int mes) async {
-    return _gastos
+    final all = await _loadAll();
+    final gastos = all
+        .map(Gasto.fromMap)
         .where((g) => g.data.year == ano && g.data.month == mes)
         .toList()
       ..sort((a, b) => b.data.compareTo(a.data));
+    return gastos;
   }
 
   @override
   Future<List<Gasto>> buscarPorCategoria(String categoria) async {
-    return _gastos
+    final all = await _loadAll();
+    final gastos = all
+        .map(Gasto.fromMap)
         .where((g) => g.categoria == categoria)
         .toList()
       ..sort((a, b) => b.data.compareTo(a.data));
+    return gastos;
   }
 
   @override
   Future<int> atualizar(Gasto gasto) async {
-    final i = _gastos.indexWhere((g) => g.id == gasto.id);
+    final all = await _loadAll();
+    final i = all.indexWhere((m) => m['id'] == gasto.id);
     if (i == -1) return 0;
-    _gastos[i] = gasto;
+    all[i] = gasto.toMap();
+    await _saveAll(all);
     return 1;
   }
 
   @override
   Future<int> excluir(int id) async {
-    final before = _gastos.length;
-    _gastos.removeWhere((g) => g.id == id);
-    return _gastos.length < before ? 1 : 0;
+    final all = await _loadAll();
+    final before = all.length;
+    all.removeWhere((m) => m['id'] == id);
+    if (all.length == before) return 0;
+    await _saveAll(all);
+    return 1;
   }
 }
 
@@ -99,12 +140,14 @@ class DatabaseHelper {
   late final _GastoRepo _repo;
 
   DatabaseHelper._() {
-    _repo = kIsWeb ? _MemoryRepo() : _SqfliteRepo();
+    _repo = kIsWeb ? _WebLocalStorageRepo() : _SqfliteRepo();
   }
 
   Future<Gasto> inserir(Gasto gasto) => _repo.inserir(gasto);
-  Future<List<Gasto>> buscarPorMes(int ano, int mes) => _repo.buscarPorMes(ano, mes);
-  Future<List<Gasto>> buscarPorCategoria(String cat) => _repo.buscarPorCategoria(cat);
+  Future<List<Gasto>> buscarPorMes(int ano, int mes) =>
+      _repo.buscarPorMes(ano, mes);
+  Future<List<Gasto>> buscarPorCategoria(String cat) =>
+      _repo.buscarPorCategoria(cat);
   Future<int> atualizar(Gasto gasto) => _repo.atualizar(gasto);
   Future<int> excluir(int id) => _repo.excluir(id);
 
