@@ -1,0 +1,443 @@
+import 'package:flutter/material.dart';
+import '../database/categoria_helper.dart';
+import '../models/categoria.dart';
+
+class CategoriasScreen extends StatefulWidget {
+  const CategoriasScreen({super.key});
+
+  @override
+  State<CategoriasScreen> createState() => _CategoriasScreenState();
+}
+
+class _CategoriasScreenState extends State<CategoriasScreen> {
+  List<Categoria> _categorias = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    final lista = await CategoriaHelper.instance.buscarTodas();
+    if (!mounted) return;
+    setState(() => _categorias = lista);
+  }
+
+  void _abrirCriar() {
+    showDialog(
+      context: context,
+      builder: (_) => _PopupCriarCategoria(onSalvar: (cat) async {
+        await CategoriaHelper.instance.inserir(cat);
+        _carregar();
+      }),
+    );
+  }
+
+  void _abrirEditar(Categoria cat) {
+    showDialog(
+      context: context,
+      builder: (_) => _PopupEditarCategoria(
+        categoria: cat,
+        onEditar: (atualizada) async {
+          await CategoriaHelper.instance.atualizar(atualizada);
+          _carregar();
+        },
+        onExcluir: () async {
+          await CategoriaHelper.instance.excluir(cat.id!);
+          _carregar();
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        elevation: 0,
+        title: const Text(
+          'Categorias',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Botão criar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: GestureDetector(
+              onTap: _abrirCriar,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cs.onSurface.withOpacity(0.12)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: cs.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.add, color: cs.primary, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Criar categoria',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Lista
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text(
+              'Minhas categorias',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.onSurface),
+            ),
+          ),
+          Expanded(
+            child: _categorias.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 2.8,
+                    ),
+                    itemCount: _categorias.length,
+                    itemBuilder: (_, i) {
+                      final cat = _categorias[i];
+                      return GestureDetector(
+                        onTap: () => _abrirEditar(cat),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: cs.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: cs.onSurface.withOpacity(0.12)),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: cs.onSurface.withOpacity(0.07),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Text(cat.icone, style: const TextStyle(fontSize: 16)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  cat.nome,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Popup Criar ───────────────────────────────────────────────────────────────
+
+class _PopupCriarCategoria extends StatefulWidget {
+  final Future<void> Function(Categoria) onSalvar;
+
+  const _PopupCriarCategoria({required this.onSalvar});
+
+  @override
+  State<_PopupCriarCategoria> createState() => _PopupCriarCategoriaState();
+}
+
+class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
+  final _nomeController = TextEditingController();
+  final _iconeController = TextEditingController();
+  bool _salvando = false;
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _iconeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _salvar() async {
+    if (_nomeController.text.trim().isEmpty) return;
+    setState(() => _salvando = true);
+
+    final cat = Categoria(
+      nome: _nomeController.text.trim(),
+      icone: _iconeController.text.trim().isEmpty ? '📦' : _iconeController.text.trim(),
+    );
+    await widget.onSalvar(cat);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Criar categoria',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            Text('Nome', style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _nomeController,
+              decoration: _inputDec(context, 'Ex: Pets'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 14),
+            Text('Ícone (digite ou escolha um emoji)',
+                style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _iconeController,
+              decoration: _inputDec(context, 'Ex: 🐶'),
+              maxLength: 2,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
+                  const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: cs.primary,
+                  foregroundColor: cs.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                onPressed: _salvando ? null : _salvar,
+                child: _salvando
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary),
+                      )
+                    : const Text('Salvar categoria',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDec(BuildContext context, String hint) {
+    final cs = Theme.of(context).colorScheme;
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: cs.onSurface.withOpacity(0.35)),
+      filled: true,
+      fillColor: cs.onSurface.withOpacity(0.06),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+}
+
+// ── Popup Editar ──────────────────────────────────────────────────────────────
+
+class _PopupEditarCategoria extends StatefulWidget {
+  final Categoria categoria;
+  final Future<void> Function(Categoria) onEditar;
+  final Future<void> Function() onExcluir;
+
+  const _PopupEditarCategoria({
+    required this.categoria,
+    required this.onEditar,
+    required this.onExcluir,
+  });
+
+  @override
+  State<_PopupEditarCategoria> createState() => _PopupEditarCategoriaState();
+}
+
+class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
+  late final TextEditingController _nomeController;
+  late final TextEditingController _iconeController;
+  bool _salvando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nomeController = TextEditingController(text: widget.categoria.nome);
+    _iconeController = TextEditingController(text: widget.categoria.icone);
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _iconeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _salvar() async {
+    if (_nomeController.text.trim().isEmpty) return;
+    setState(() => _salvando = true);
+
+    final atualizada = widget.categoria.copyWith(
+      nome: _nomeController.text.trim(),
+      icone: _iconeController.text.trim().isEmpty ? widget.categoria.icone : _iconeController.text.trim(),
+    );
+    await widget.onEditar(atualizada);
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _excluir() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir categoria'),
+        content: const Text('Tem certeza? Os gastos desta categoria não serão apagados.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir', style: TextStyle(color: Color(0xFFA32D2D))),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true) {
+      await widget.onExcluir();
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final eFixa = widget.categoria.fixa;
+    final cs = Theme.of(context).colorScheme;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Editar categoria',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 16),
+            Text('Editar nome', style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _nomeController,
+              enabled: !eFixa,
+              decoration: _inputDec(context, 'Nome'),
+            ),
+            const SizedBox(height: 14),
+            Text('Editar ícone', style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _iconeController,
+              decoration: _inputDec(context, 'Emoji'),
+              maxLength: 2,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
+                  const SizedBox.shrink(),
+            ),
+            if (eFixa)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Categoria padrão — nome não pode ser alterado.',
+                  style: TextStyle(fontSize: 11, color: cs.onSurface.withOpacity(0.35)),
+                ),
+              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Editar'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _salvando ? null : _salvar,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFA32D2D)),
+                    label: const Text('Excluir', style: TextStyle(color: Color(0xFFA32D2D))),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xFFF09595)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: eFixa ? null : _excluir,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDec(BuildContext context, String hint) {
+    final cs = Theme.of(context).colorScheme;
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: cs.onSurface.withOpacity(0.35)),
+      filled: true,
+      fillColor: cs.onSurface.withOpacity(0.06),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+}
