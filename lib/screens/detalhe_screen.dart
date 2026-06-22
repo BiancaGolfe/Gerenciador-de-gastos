@@ -90,7 +90,10 @@ class DetalheScreen extends StatelessWidget {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CadastroScreen(gastoParaEditar: gasto),
+                          builder: (_) => CadastroScreen(
+                            gastoParaEditar: gasto,
+                            usuarioId: gasto.usuarioId ?? 0,
+                          ),
                         ),
                       );
                       if (context.mounted) Navigator.pop(context);

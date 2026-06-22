@@ -14,7 +14,7 @@ const _fixas = [
 ];
 
 abstract class _CatRepo {
-  Future<List<Categoria>> buscarTodas();
+  Future<List<Categoria>> buscarTodas(int usuarioId);
   Future<Categoria> inserir(Categoria cat);
   Future<int> atualizar(Categoria cat);
   Future<int> excluir(int id);
@@ -22,9 +22,13 @@ abstract class _CatRepo {
 
 class _SqfliteCatRepo implements _CatRepo {
   @override
-  Future<List<Categoria>> buscarTodas() async {
+  Future<List<Categoria>> buscarTodas(int usuarioId) async {
     final db = await getDatabase();
-    final rows = await db.query('categorias', orderBy: 'id ASC');
+    // Buscar categorias fixas (usuario_id = NULL) e categorias do usuário
+    final rows = await db.query('categorias',
+        where: 'usuario_id IS NULL OR usuario_id = ?',
+        whereArgs: [usuarioId],
+        orderBy: 'id ASC');
     return rows.map(Categoria.fromMap).toList();
   }
 
@@ -84,17 +88,21 @@ class _WebCatRepo implements _CatRepo {
     int nextId = 1;
     final lista = <Map<String, dynamic>>[];
     for (final c in _fixas) {
-      lista.add({'id': nextId++, 'nome': c['nome'], 'icone': c['icone'], 'fixa': 0});
+      lista.add({'id': nextId++, 'usuario_id': null, 'nome': c['nome'], 'icone': c['icone'], 'fixa': 0});
     }
     await prefs.setString(_key, jsonEncode(lista));
     await prefs.setInt(_nextIdKey, nextId);
   }
 
   @override
-  Future<List<Categoria>> buscarTodas() async {
+  Future<List<Categoria>> buscarTodas(int usuarioId) async {
     await _inicializarFixas();
     final all = await _loadAll();
-    return all.map(Categoria.fromMap).toList();
+    // Retorna categorias fixas (usuario_id = null) e categorias do usuário
+    return all
+        .where((cat) => cat['usuario_id'] == null || cat['usuario_id'] == usuarioId)
+        .map(Categoria.fromMap)
+        .toList();
   }
 
   @override
@@ -137,7 +145,7 @@ class CategoriaHelper {
     _repo = kIsWeb ? _WebCatRepo() : _SqfliteCatRepo();
   }
 
-  Future<List<Categoria>> buscarTodas() => _repo.buscarTodas();
+  Future<List<Categoria>> buscarTodas(int usuarioId) => _repo.buscarTodas(usuarioId);
   Future<Categoria> inserir(Categoria cat) => _repo.inserir(cat);
   Future<int> atualizar(Categoria cat) => _repo.atualizar(cat);
   Future<int> excluir(int id) => _repo.excluir(id);

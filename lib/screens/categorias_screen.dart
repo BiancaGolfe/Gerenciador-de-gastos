@@ -3,7 +3,9 @@ import '../database/categoria_helper.dart';
 import '../models/categoria.dart';
 
 class CategoriasScreen extends StatefulWidget {
-  const CategoriasScreen({super.key});
+  final int usuarioId;
+
+  const CategoriasScreen({super.key, required this.usuarioId});
 
   @override
   State<CategoriasScreen> createState() => _CategoriasScreenState();
@@ -19,7 +21,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
   }
 
   Future<void> _carregar() async {
-    final lista = await CategoriaHelper.instance.buscarTodas();
+    final lista = await CategoriaHelper.instance.buscarTodas(widget.usuarioId);
     if (!mounted) return;
     setState(() => _categorias = lista);
   }
@@ -27,10 +29,13 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
   void _abrirCriar() {
     showDialog(
       context: context,
-      builder: (_) => _PopupCriarCategoria(onSalvar: (cat) async {
-        await CategoriaHelper.instance.inserir(cat);
-        _carregar();
-      }),
+      builder: (_) => _PopupCriarCategoria(
+        usuarioId: widget.usuarioId,
+        onSalvar: (cat) async {
+          await CategoriaHelper.instance.inserir(cat);
+          _carregar();
+        },
+      ),
     );
   }
 
@@ -169,9 +174,10 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
 // ── Popup Criar ───────────────────────────────────────────────────────────────
 
 class _PopupCriarCategoria extends StatefulWidget {
+  final int usuarioId;
   final Future<void> Function(Categoria) onSalvar;
 
-  const _PopupCriarCategoria({required this.onSalvar});
+  const _PopupCriarCategoria({required this.usuarioId, required this.onSalvar});
 
   @override
   State<_PopupCriarCategoria> createState() => _PopupCriarCategoriaState();
@@ -194,6 +200,7 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
     setState(() => _salvando = true);
 
     final cat = Categoria(
+      usuarioId: widget.usuarioId,
       nome: _nomeController.text.trim(),
       icone: _iconeController.text.trim().isEmpty ? '📦' : _iconeController.text.trim(),
     );

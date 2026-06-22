@@ -12,8 +12,9 @@ import '../utils/image_helper_web.dart' if (dart.library.io) '../utils/image_hel
 
 class CadastroScreen extends StatefulWidget {
   final Gasto? gastoParaEditar;
+  final int usuarioId;
 
-  const CadastroScreen({super.key, this.gastoParaEditar});
+  const CadastroScreen({super.key, this.gastoParaEditar, required this.usuarioId});
 
   @override
   State<CadastroScreen> createState() => _CadastroScreenState();
@@ -46,7 +47,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
   }
 
   Future<void> _carregarCategorias() async {
-    final lista = await CategoriaHelper.instance.buscarTodas();
+    final lista = await CategoriaHelper.instance.buscarTodas(widget.usuarioId);
     if (!mounted) return;
     setState(() {
       _categorias = lista;
@@ -125,6 +126,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
 
     final gasto = Gasto(
       id: widget.gastoParaEditar?.id,
+      usuarioId: widget.usuarioId,
       valor: valor,
       categoria: _categoriaSelecionada!,
       descricao: _descricaoController.text.trim().isEmpty
@@ -147,11 +149,14 @@ class _CadastroScreenState extends State<CadastroScreen> {
   void _abrirCriarCategoria() {
     showDialog(
       context: context,
-      builder: (_) => _PopupCriarCategoriaInline(onSalvar: (cat) async {
-        final nova = await CategoriaHelper.instance.inserir(cat);
-        await _carregarCategorias();
-        setState(() => _categoriaSelecionada = nova.nome);
-      }),
+      builder: (_) => _PopupCriarCategoriaInline(
+        usuarioId: widget.usuarioId,
+        onSalvar: (cat) async {
+          final nova = await CategoriaHelper.instance.inserir(cat);
+          await _carregarCategorias();
+          setState(() => _categoriaSelecionada = nova.nome);
+        },
+      ),
     );
   }
 
@@ -369,9 +374,10 @@ class _CadastroScreenState extends State<CadastroScreen> {
 // ── Popup criar categoria inline ──────────────────────────────────────────────
 
 class _PopupCriarCategoriaInline extends StatefulWidget {
+  final int usuarioId;
   final Future<void> Function(Categoria) onSalvar;
 
-  const _PopupCriarCategoriaInline({required this.onSalvar});
+  const _PopupCriarCategoriaInline({required this.usuarioId, required this.onSalvar});
 
   @override
   State<_PopupCriarCategoriaInline> createState() => _PopupCriarCategoriaInlineState();
@@ -393,6 +399,7 @@ class _PopupCriarCategoriaInlineState extends State<_PopupCriarCategoriaInline> 
     if (_nomeController.text.trim().isEmpty) return;
     setState(() => _salvando = true);
     final cat = Categoria(
+      usuarioId: widget.usuarioId,
       nome: _nomeController.text.trim(),
       icone: _iconeController.text.trim().isEmpty ? '📦' : _iconeController.text.trim(),
     );

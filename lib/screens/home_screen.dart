@@ -40,9 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _abaSelecionada,
         children: [
           _HomeTab(usuario: widget.usuario, onSair: _sair),
-          const HistoricoScreen(),
-          const GraficosScreen(),
-          const CategoriasScreen(),
+          HistoricoScreen(usuarioId: widget.usuario?.id ?? 0),
+          GraficosScreen(usuarioId: widget.usuario?.id ?? 0),
+          CategoriasScreen(usuarioId: widget.usuario?.id ?? 0),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -85,8 +85,8 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _carregar() async {
-    final gastos = await _db.buscarPorMes(_agora.year, _agora.month);
-    final total = await _db.totalDoMes(_agora.year, _agora.month);
+    final gastos = await _db.buscarPorMes(_agora.year, _agora.month, widget.usuario?.id ?? 0);
+    final total = await _db.totalDoMes(_agora.year, _agora.month, widget.usuario?.id ?? 0);
     if (!mounted) return;
     setState(() {
       _gastos = gastos.take(5).toList();
@@ -185,7 +185,9 @@ class _HomeTabState extends State<_HomeTab> {
         onPressed: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CadastroScreen()),
+            MaterialPageRoute(
+              builder: (_) => CadastroScreen(usuarioId: widget.usuario?.id ?? 0),
+            ),
           );
           _carregar();
         },

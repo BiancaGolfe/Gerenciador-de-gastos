@@ -6,7 +6,9 @@ import '../utils/categorias.dart';
 import '../utils/formatters.dart';
 
 class GraficosScreen extends StatefulWidget {
-  const GraficosScreen({super.key});
+  final int usuarioId;
+
+  const GraficosScreen({super.key, required this.usuarioId});
 
   @override
   State<GraficosScreen> createState() => _GraficosScreenState();
@@ -24,7 +26,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
   }
 
   Future<void> _carregar() async {
-    final gastos = await DatabaseHelper.instance.buscarPorMes(_agora.year, _agora.month);
+    final gastos = await DatabaseHelper.instance.buscarPorMes(_agora.year, _agora.month, widget.usuarioId);
     final total = gastos.fold(0.0, (s, g) => s + g.valor);
     if (!mounted) return;
     setState(() {

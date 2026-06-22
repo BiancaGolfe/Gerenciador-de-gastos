@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/usuario.dart';
 import 'db_init.dart';
 
+const _sessaoKey = 'sessao_usuario_id';
+
 abstract class _UsuarioRepo {
   Future<Usuario?> buscarLogado();
   Future<Usuario?> buscarPorEmail(String email);
@@ -15,14 +17,23 @@ abstract class _UsuarioRepo {
 // ── Mobile: SQFlite ───────────────────────────────────────────────────────────
 
 class _SqfliteUsuarioRepo implements _UsuarioRepo {
+  Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+
   @override
   Future<Usuario?> buscarLogado() async {
     final db = await getDatabase();
     final sessao = await db.query('sessao', limit: 1);
-    if (sessao.isEmpty) return null;
-    final uid = sessao.first['usuario_id'] as int;
-    final rows =
-        await db.query('usuarios', where: 'id = ?', whereArgs: [uid]);
+    int? uid;
+    if (sessao.isNotEmpty) {
+      uid = sessao.first['usuario_id'] as int?;
+    }
+    if (uid == null) {
+      final prefs = await _prefs;
+      uid = prefs.getInt(_sessaoKey);
+    }
+    if (uid == null) return null;
+
+    final rows = await db.query('usuarios', where: 'id = ?', whereArgs: [uid]);
     if (rows.isEmpty) return null;
     return Usuario.fromMap(rows.first);
   }
@@ -30,8 +41,7 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
   @override
   Future<Usuario?> buscarPorEmail(String email) async {
     final db = await getDatabase();
-    final rows = await db
-        .query('usuarios', where: 'email = ?', whereArgs: [email]);
+    final rows = await db.query('usuarios', where: 'email = ?', whereArgs: [email]);
     if (rows.isEmpty) return null;
     return Usuario.fromMap(rows.first);
   }
@@ -41,10 +51,11 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
     final db = await getDatabase();
     final id = await db.insert('usuarios', usuario.toMap());
     return Usuario(
-        id: id,
-        nome: usuario.nome,
-        email: usuario.email,
-        senha: usuario.senha);
+      id: id,
+      nome: usuario.nome,
+      email: usuario.email,
+      senha: usuario.senha,
+    );
   }
 
   @override
@@ -52,12 +63,16 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
     final db = await getDatabase();
     await db.delete('sessao');
     await db.insert('sessao', {'id': 1, 'usuario_id': id});
+    final prefs = await _prefs;
+    await prefs.setInt(_sessaoKey, id);
   }
 
   @override
   Future<void> encerrarSessao() async {
     final db = await getDatabase();
     await db.delete('sessao');
+    final prefs = await _prefs;
+    await prefs.remove(_sessaoKey);
   }
 }
 
@@ -65,8 +80,8 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
 
 class _WebUsuarioRepo implements _UsuarioRepo {
   static const _usuariosKey = 'usuarios_data';
-  static const _nextIdKey   = 'usuarios_next_id';
-  static const _sessaoKey   = 'sessao_usuario_id';
+  static const _nextIdKey = 'usuarios_next_id';
+  static const _sessaoKey = 'sessao_usuario_id';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
@@ -104,8 +119,7 @@ class _WebUsuarioRepo implements _UsuarioRepo {
   @override
   Future<Usuario?> buscarPorEmail(String email) async {
     final all = await _loadAll();
-    final map =
-        all.where((m) => m['email'] == email).firstOrNull;
+    final map = all.where((m) => m['email'] == email).firstOrNull;
     if (map == null) return null;
     return Usuario.fromMap(map);
   }
@@ -114,10 +128,11 @@ class _WebUsuarioRepo implements _UsuarioRepo {
   Future<Usuario> inserir(Usuario usuario) async {
     final id = await _nextId();
     final novo = Usuario(
-        id: id,
-        nome: usuario.nome,
-        email: usuario.email,
-        senha: usuario.senha);
+      id: id,
+      nome: usuario.nome,
+      email: usuario.email,
+      senha: usuario.senha,
+    );
     final all = await _loadAll();
     all.add(novo.toMap());
     await _saveAll(all);

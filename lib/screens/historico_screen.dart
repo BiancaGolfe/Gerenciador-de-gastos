@@ -7,7 +7,9 @@ import '../widgets/gasto_card.dart';
 import 'detalhe_screen.dart';
 
 class HistoricoScreen extends StatefulWidget {
-  const HistoricoScreen({super.key});
+  final int usuarioId;
+
+  const HistoricoScreen({super.key, required this.usuarioId});
 
   @override
   State<HistoricoScreen> createState() => _HistoricoScreenState();
@@ -28,9 +30,9 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   Future<void> _carregar() async {
     List<Gasto> gastos;
     if (_filtro == 'Todos') {
-      gastos = await _db.buscarPorMes(_agora.year, _agora.month);
+      gastos = await _db.buscarPorMes(_agora.year, _agora.month, widget.usuarioId);
     } else {
-      gastos = await _db.buscarPorCategoria(_filtro);
+      gastos = await _db.buscarPorCategoria(_filtro, widget.usuarioId);
     }
     if (!mounted) return;
     setState(() => _gastos = gastos);

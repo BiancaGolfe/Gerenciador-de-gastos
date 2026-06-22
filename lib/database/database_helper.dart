@@ -6,8 +6,8 @@ import 'db_init.dart';
 
 abstract class _GastoRepo {
   Future<Gasto> inserir(Gasto gasto);
-  Future<List<Gasto>> buscarPorMes(int ano, int mes);
-  Future<List<Gasto>> buscarPorCategoria(String categoria);
+  Future<List<Gasto>> buscarPorMes(int ano, int mes, int usuarioId);
+  Future<List<Gasto>> buscarPorCategoria(String categoria, int usuarioId);
   Future<int> atualizar(Gasto gasto);
   Future<int> excluir(int id);
 }
@@ -21,22 +21,24 @@ class _SqfliteRepo implements _GastoRepo {
   }
 
   @override
-  Future<List<Gasto>> buscarPorMes(int ano, int mes) async {
+  Future<List<Gasto>> buscarPorMes(int ano, int mes, int usuarioId) async {
     final db = await getDatabase();
     final inicio = DateTime(ano, mes, 1).toIso8601String();
     final fim = DateTime(ano, mes + 1, 0, 23, 59, 59).toIso8601String();
     final result = await db.query('gastos',
-        where: 'data BETWEEN ? AND ?',
-        whereArgs: [inicio, fim],
+        where: 'usuario_id = ? AND data BETWEEN ? AND ?',
+        whereArgs: [usuarioId, inicio, fim],
         orderBy: 'data DESC');
     return result.map(Gasto.fromMap).toList();
   }
 
   @override
-  Future<List<Gasto>> buscarPorCategoria(String categoria) async {
+  Future<List<Gasto>> buscarPorCategoria(String categoria, int usuarioId) async {
     final db = await getDatabase();
     final result = await db.query('gastos',
-        where: 'categoria = ?', whereArgs: [categoria], orderBy: 'data DESC');
+        where: 'usuario_id = ? AND categoria = ?', 
+        whereArgs: [usuarioId, categoria], 
+        orderBy: 'data DESC');
     return result.map(Gasto.fromMap).toList();
   }
 
@@ -93,22 +95,22 @@ class _WebLocalStorageRepo implements _GastoRepo {
   }
 
   @override
-  Future<List<Gasto>> buscarPorMes(int ano, int mes) async {
+  Future<List<Gasto>> buscarPorMes(int ano, int mes, int usuarioId) async {
     final all = await _loadAll();
     final gastos = all
         .map(Gasto.fromMap)
-        .where((g) => g.data.year == ano && g.data.month == mes)
+        .where((g) => g.usuarioId == usuarioId && g.data.year == ano && g.data.month == mes)
         .toList()
       ..sort((a, b) => b.data.compareTo(a.data));
     return gastos;
   }
 
   @override
-  Future<List<Gasto>> buscarPorCategoria(String categoria) async {
+  Future<List<Gasto>> buscarPorCategoria(String categoria, int usuarioId) async {
     final all = await _loadAll();
     final gastos = all
         .map(Gasto.fromMap)
-        .where((g) => g.categoria == categoria)
+        .where((g) => g.usuarioId == usuarioId && g.categoria == categoria)
         .toList()
       ..sort((a, b) => b.data.compareTo(a.data));
     return gastos;
@@ -144,15 +146,15 @@ class DatabaseHelper {
   }
 
   Future<Gasto> inserir(Gasto gasto) => _repo.inserir(gasto);
-  Future<List<Gasto>> buscarPorMes(int ano, int mes) =>
-      _repo.buscarPorMes(ano, mes);
-  Future<List<Gasto>> buscarPorCategoria(String cat) =>
-      _repo.buscarPorCategoria(cat);
+  Future<List<Gasto>> buscarPorMes(int ano, int mes, int usuarioId) =>
+      _repo.buscarPorMes(ano, mes, usuarioId);
+  Future<List<Gasto>> buscarPorCategoria(String cat, int usuarioId) =>
+      _repo.buscarPorCategoria(cat, usuarioId);
   Future<int> atualizar(Gasto gasto) => _repo.atualizar(gasto);
   Future<int> excluir(int id) => _repo.excluir(id);
 
-  Future<double> totalDoMes(int ano, int mes) async {
-    final gastos = await buscarPorMes(ano, mes);
+  Future<double> totalDoMes(int ano, int mes, int usuarioId) async {
+    final gastos = await buscarPorMes(ano, mes, usuarioId);
     return gastos.fold<double>(0.0, (soma, g) => soma + g.valor);
   }
 }

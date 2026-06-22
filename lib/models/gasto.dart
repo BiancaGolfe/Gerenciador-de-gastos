@@ -1,5 +1,6 @@
 class Gasto {
   final int? id;
+  final int? usuarioId;
   final double valor;
   final String categoria;
   final String? descricao;
@@ -8,6 +9,7 @@ class Gasto {
 
   Gasto({
     this.id,
+    this.usuarioId,
     required this.valor,
     required this.categoria,
     this.descricao,
@@ -18,6 +20,7 @@ class Gasto {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'usuario_id': usuarioId,
       'valor': valor,
       'categoria': categoria,
       'descricao': descricao,
@@ -29,6 +32,7 @@ class Gasto {
   factory Gasto.fromMap(Map<String, dynamic> map) {
     return Gasto(
       id: map['id'] as int?,
+      usuarioId: map['usuario_id'] as int?,
       valor: (map['valor'] as num).toDouble(),
       categoria: map['categoria'] as String,
       descricao: map['descricao'] as String?,
@@ -39,6 +43,7 @@ class Gasto {
 
   Gasto copyWith({
     int? id,
+    int? usuarioId,
     double? valor,
     String? categoria,
     String? descricao,
@@ -47,6 +52,7 @@ class Gasto {
   }) {
     return Gasto(
       id: id ?? this.id,
+      usuarioId: usuarioId ?? this.usuarioId,
       valor: valor ?? this.valor,
       categoria: categoria ?? this.categoria,
       descricao: descricao ?? this.descricao,

@@ -35,24 +35,28 @@ Future<Database> _initDB() async {
 
   return openDatabase(
     path,
-    version: 1,
+    version: 3,
     onCreate: (db, _) async {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS gastos (
           id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id  INTEGER NOT NULL,
           valor       REAL NOT NULL,
           categoria   TEXT NOT NULL,
           descricao   TEXT,
           data        TEXT NOT NULL,
-          imagem_path TEXT
+          imagem_path TEXT,
+          FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
         )
       ''');
       await db.execute('''
         CREATE TABLE IF NOT EXISTS categorias (
-          id    INTEGER PRIMARY KEY AUTOINCREMENT,
-          nome  TEXT NOT NULL,
-          icone TEXT NOT NULL,
-          fixa  INTEGER NOT NULL DEFAULT 0
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id INTEGER,
+          nome       TEXT NOT NULL,
+          icone      TEXT NOT NULL,
+          fixa       INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
         )
       ''');
       await db.execute('''
@@ -71,6 +75,37 @@ Future<Database> _initDB() async {
       ''');
       for (final c in _categoriasFixas) {
         await db.insert('categorias', c);
+      }
+    },
+    onUpgrade: (db, oldVersion, newVersion) async {
+      if (oldVersion < 2) {
+        // Migração v1 -> v2: adicionar usuario_id aos gastos
+        await db.execute('ALTER TABLE gastos ADD COLUMN usuario_id INTEGER');
+        await db.execute('UPDATE gastos SET usuario_id = 1 WHERE usuario_id IS NULL');
+        await db.execute('''
+          CREATE TABLE gastos_new (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id  INTEGER NOT NULL,
+            valor       REAL NOT NULL,
+            categoria   TEXT NOT NULL,
+            descricao   TEXT,
+            data        TEXT NOT NULL,
+            imagem_path TEXT,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
+          )
+        ''');
+        await db.execute('''
+          INSERT INTO gastos_new (id, usuario_id, valor, categoria, descricao, data, imagem_path)
+          SELECT id, COALESCE(usuario_id, 1), valor, categoria, descricao, data, imagem_path FROM gastos
+        ''');
+        await db.execute('DROP TABLE gastos');
+        await db.execute('ALTER TABLE gastos_new RENAME TO gastos');
+      }
+      if (oldVersion < 3) {
+        // Migração v2 -> v3: adicionar usuario_id às categorias
+        await db.execute('ALTER TABLE categorias ADD COLUMN usuario_id INTEGER');
+        // Deixar categorias fixas (fixa=1) com usuario_id=NULL, e demais com usuario_id=1
+        // (considera que antigas categorias criadas pertencem ao primeiro usuário)
       }
     },
   );
