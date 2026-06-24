@@ -24,7 +24,7 @@ class _SqfliteCatRepo implements _CatRepo {
   @override
   Future<List<Categoria>> buscarTodas(int usuarioId) async {
     final db = await getDatabase();
-    // Buscar categorias fixas (usuario_id = NULL) e categorias do usuário
+   
     final rows = await db.query('categorias',
         where: 'usuario_id IS NULL OR usuario_id = ?',
         whereArgs: [usuarioId],
@@ -53,7 +53,7 @@ class _SqfliteCatRepo implements _CatRepo {
   }
 }
 
-/// Repositório web: persiste categorias no localStorage via shared_preferences.
+
 class _WebCatRepo implements _CatRepo {
   static const _key = 'categorias_data';
   static const _nextIdKey = 'categorias_next_id';
@@ -80,7 +80,7 @@ class _WebCatRepo implements _CatRepo {
     return id;
   }
 
-  /// Garante que as categorias fixas existam no localStorage na primeira vez.
+ 
   Future<void> _inicializarFixas() async {
     final all = await _loadAll();
     if (all.isNotEmpty) return;
@@ -98,7 +98,7 @@ class _WebCatRepo implements _CatRepo {
   Future<List<Categoria>> buscarTodas(int usuarioId) async {
     await _inicializarFixas();
     final all = await _loadAll();
-    // Retorna categorias fixas (usuario_id = null) e categorias do usuário
+    
     return all
         .where((cat) => cat['usuario_id'] == null || cat['usuario_id'] == usuarioId)
         .map(Categoria.fromMap)
@@ -142,7 +142,7 @@ class CategoriaHelper {
   late final _CatRepo _repo;
 
   CategoriaHelper._() {
-    _repo = kIsWeb ? _WebCatRepo() : _SqfliteCatRepo();
+    _repo = _SqfliteCatRepo();
   }
 
   Future<List<Categoria>> buscarTodas(int usuarioId) => _repo.buscarTodas(usuarioId);

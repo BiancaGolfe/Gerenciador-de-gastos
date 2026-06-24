@@ -1,22 +1,22 @@
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
-Database? _db;
 
 Future<Database>? _dbFuture;
 
 Future<Database> getDatabase() async {
-  if (kIsWeb) throw UnsupportedError('Use repositório em memória na web');
   _dbFuture ??= _initDB();
   return _dbFuture!;
 }
 
 Future<Database> _initDB() async {
-  // dart:io não existe na web, então só inicializa FFI no desktop
-  if (!kIsWeb) {
+
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else {
     bool isDesktop = false;
-    // Verifica em tempo de execução sem importar dart:io diretamente
+    
     try {
       isDesktop = !kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.windows ||
@@ -30,8 +30,7 @@ Future<Database> _initDB() async {
     }
   }
 
-  final dbPath = await getDatabasesPath();
-  final path = join(dbPath, 'gastos.db');
+  final path = kIsWeb ? 'gastos.db' : join(await getDatabasesPath(), 'gastos.db');
 
   return openDatabase(
     path,

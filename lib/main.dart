@@ -90,7 +90,7 @@ class _SplashRouterState extends State<_SplashRouter> {
   @override
   void initState() {
     super.initState();
-    // Persiste o tema sempre que mudar
+    
     temaEscuro.addListener(() => salvarTema(temaEscuro.value));
     _verificarSessao();
   }

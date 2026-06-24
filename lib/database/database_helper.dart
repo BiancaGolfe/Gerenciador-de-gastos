@@ -56,8 +56,7 @@ class _SqfliteRepo implements _GastoRepo {
   }
 }
 
-/// Repositório para web: persiste gastos no localStorage do navegador
-/// via shared_preferences, para os dados sobreviverem ao recarregamento da página.
+
 class _WebLocalStorageRepo implements _GastoRepo {
   static const _keystoreKey = 'gastos_data';
   static const _nextIdKey = 'gastos_next_id';
@@ -142,7 +141,7 @@ class DatabaseHelper {
   late final _GastoRepo _repo;
 
   DatabaseHelper._() {
-    _repo = kIsWeb ? _WebLocalStorageRepo() : _SqfliteRepo();
+    _repo = _SqfliteRepo();
   }
 
   Future<Gasto> inserir(Gasto gasto) => _repo.inserir(gasto);

@@ -159,7 +159,7 @@ class UsuarioHelper {
   late final _UsuarioRepo _repo;
 
   UsuarioHelper._() {
-    _repo = kIsWeb ? _WebUsuarioRepo() : _SqfliteUsuarioRepo();
+    _repo = _SqfliteUsuarioRepo();
   }
 
   Future<Usuario?> buscarLogado() => _repo.buscarLogado();
