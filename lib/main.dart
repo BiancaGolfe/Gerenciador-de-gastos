@@ -25,7 +25,7 @@ class ControleGastosApp extends StatelessWidget {
         themeMode: escuro ? ThemeMode.dark : ThemeMode.light,
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF534AB7)),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF534AB7)),  
           scaffoldBackgroundColor: const Color(0xFFF8F7FC),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.white,

@@ -4,6 +4,7 @@ import '../database/usuario_helper.dart';
 import '../models/gasto.dart';
 import '../models/usuario.dart';
 import '../utils/formatters.dart';
+import '../utils/notifiers.dart';
 import '../widgets/gasto_card.dart';
 import 'cadastro_screen.dart';
 import 'detalhe_screen.dart';
@@ -47,13 +48,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _abaSelecionada,
-        onTap: (i) => setState(() => _abaSelecionada = i),
+        onTap: (i) {
+          setState(() => _abaSelecionada = i);
+          // Notificar histórico quando selecionado
+          if (i == 1) {
+            categoriasNotifier.value++;
+          }
+        },
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Início'),
-          BottomNavigationBarItem(icon: Icon(Icons.list_outlined), label: 'Histórico'),
-          BottomNavigationBarItem(icon: Icon(Icons.pie_chart_outline), label: 'Gráficos'),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'Categorias'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined), label: 'Início'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.list_outlined), label: 'Histórico'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.pie_chart_outline), label: 'Gráficos'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_outlined), label: 'Categorias'),
         ],
       ),
     );
@@ -85,8 +96,10 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _carregar() async {
-    final gastos = await _db.buscarPorMes(_agora.year, _agora.month, widget.usuario?.id ?? 0);
-    final total = await _db.totalDoMes(_agora.year, _agora.month, widget.usuario?.id ?? 0);
+    final gastos = await _db.buscarPorMes(
+        _agora.year, _agora.month, widget.usuario?.id ?? 0);
+    final total = await _db.totalDoMes(
+        _agora.year, _agora.month, widget.usuario?.id ?? 0);
     if (!mounted) return;
     setState(() {
       _gastos = gastos.take(5).toList();
@@ -110,7 +123,8 @@ class _HomeTabState extends State<_HomeTab> {
             ),
             Text(
               'Resumo de ${formatarMesAno(_agora)}',
-              style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5)),
+              style:
+                  TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5)),
             ),
           ],
         ),
@@ -140,26 +154,31 @@ class _HomeTabState extends State<_HomeTab> {
                       if (u != null) {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => HomeScreen(usuario: u)),
+                          MaterialPageRoute(
+                              builder: (_) => HomeScreen(usuario: u)),
                         );
                       }
                     },
                     child: Text(
                       'Entrar',
-                      style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          color: cs.primary, fontWeight: FontWeight.w600),
                     ),
                   )
                 : PopupMenuButton(
                     offset: const Offset(0, 40),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     itemBuilder: (_) => [
                       PopupMenuItem(
                         onTap: widget.onSair,
                         child: const Row(
                           children: [
-                            Icon(Icons.logout_outlined, size: 18, color: Color(0xFFA32D2D)),
+                            Icon(Icons.logout_outlined,
+                                size: 18, color: Color(0xFFA32D2D)),
                             SizedBox(width: 8),
-                            Text('Sair', style: TextStyle(color: Color(0xFFA32D2D))),
+                            Text('Sair',
+                                style: TextStyle(color: Color(0xFFA32D2D))),
                           ],
                         ),
                       ),
@@ -186,7 +205,8 @@ class _HomeTabState extends State<_HomeTab> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => CadastroScreen(usuarioId: widget.usuario?.id ?? 0),
+              builder: (_) =>
+                  CadastroScreen(usuarioId: widget.usuario?.id ?? 0),
             ),
           );
           _carregar();
@@ -224,7 +244,8 @@ class _HomeTabState extends State<_HomeTab> {
                     onTap: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => DetalheScreen(gasto: g)),
+                        MaterialPageRoute(
+                            builder: (_) => DetalheScreen(gasto: g)),
                       );
                       _carregar();
                     },

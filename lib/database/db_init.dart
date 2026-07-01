@@ -11,17 +11,16 @@ Future<Database> getDatabase() async {
 }
 
 Future<Database> _initDB() async {
-
   if (kIsWeb) {
     databaseFactory = databaseFactoryFfiWeb;
   } else {
     bool isDesktop = false;
-    
+
     try {
       isDesktop = !kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.windows ||
-           defaultTargetPlatform == TargetPlatform.macOS ||
-           defaultTargetPlatform == TargetPlatform.linux);
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux);
     } catch (_) {}
 
     if (isDesktop) {
@@ -30,11 +29,12 @@ Future<Database> _initDB() async {
     }
   }
 
-  final path = kIsWeb ? 'gastos.db' : join(await getDatabasesPath(), 'gastos.db');
+  final path =
+      kIsWeb ? 'gastos.db' : join(await getDatabasesPath(), 'gastos.db');
 
   return openDatabase(
     path,
-    version: 3,
+    version: 4,
     onCreate: (db, _) async {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS gastos (
@@ -55,6 +55,8 @@ Future<Database> _initDB() async {
           nome       TEXT NOT NULL,
           icone      TEXT NOT NULL,
           fixa       INTEGER NOT NULL DEFAULT 0,
+          cor        TEXT,
+          cor_fundo  TEXT,
           FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
         )
       ''');
@@ -80,7 +82,8 @@ Future<Database> _initDB() async {
       if (oldVersion < 2) {
         // Migração v1 -> v2: adicionar usuario_id aos gastos
         await db.execute('ALTER TABLE gastos ADD COLUMN usuario_id INTEGER');
-        await db.execute('UPDATE gastos SET usuario_id = 1 WHERE usuario_id IS NULL');
+        await db.execute(
+            'UPDATE gastos SET usuario_id = 1 WHERE usuario_id IS NULL');
         await db.execute('''
           CREATE TABLE gastos_new (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,9 +105,19 @@ Future<Database> _initDB() async {
       }
       if (oldVersion < 3) {
         // Migração v2 -> v3: adicionar usuario_id às categorias
-        await db.execute('ALTER TABLE categorias ADD COLUMN usuario_id INTEGER');
+        await db
+            .execute('ALTER TABLE categorias ADD COLUMN usuario_id INTEGER');
         // Deixar categorias fixas (fixa=1) com usuario_id=NULL, e demais com usuario_id=1
         // (considera que antigas categorias criadas pertencem ao primeiro usuário)
+      }
+      if (oldVersion < 4) {
+        // Migração v3 -> v4: adicionar colunas de cor
+        try {
+          await db.execute('ALTER TABLE categorias ADD COLUMN cor TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE categorias ADD COLUMN cor_fundo TEXT');
+        } catch (_) {}
       }
     },
   );
@@ -112,9 +125,9 @@ Future<Database> _initDB() async {
 
 const _categoriasFixas = [
   {'nome': 'Alimentação', 'icone': '🍽️', 'fixa': 0},
-  {'nome': 'Transporte',  'icone': '🚌', 'fixa': 0},
-  {'nome': 'Lazer',       'icone': '🎮', 'fixa': 0},
-  {'nome': 'Estudos',     'icone': '📚', 'fixa': 0},
-  {'nome': 'Saúde',       'icone': '❤️', 'fixa': 0},
-  {'nome': 'Outros',      'icone': '📦', 'fixa': 0},
+  {'nome': 'Transporte', 'icone': '🚌', 'fixa': 0},
+  {'nome': 'Lazer', 'icone': '🎮', 'fixa': 0},
+  {'nome': 'Estudos', 'icone': '📚', 'fixa': 0},
+  {'nome': 'Saúde', 'icone': '❤️', 'fixa': 0},
+  {'nome': 'Outros', 'icone': '📦', 'fixa': 0},
 ];

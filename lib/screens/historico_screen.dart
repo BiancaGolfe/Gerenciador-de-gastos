@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
+import '../database/categoria_helper.dart';
 import '../models/gasto.dart';
+import '../models/categoria.dart';
 import '../utils/formatters.dart';
-import '../utils/categorias.dart';
+import '../utils/notifiers.dart';
 import '../widgets/gasto_card.dart';
 import 'detalhe_screen.dart';
 
@@ -15,8 +17,10 @@ class HistoricoScreen extends StatefulWidget {
   State<HistoricoScreen> createState() => _HistoricoScreenState();
 }
 
-class _HistoricoScreenState extends State<HistoricoScreen> {
+class _HistoricoScreenState extends State<HistoricoScreen>
+    with WidgetsBindingObserver {
   List<Gasto> _gastos = [];
+  List<Categoria> _categoriasUsuario = [];
   String _filtro = 'Todos';
   final _db = DatabaseHelper.instance;
   final _agora = DateTime.now();
@@ -24,13 +28,38 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _carregarCategorias();
     _carregar();
+    // Escutar mudanças de categorias
+    categoriasNotifier.addListener(_carregarCategorias);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    categoriasNotifier.removeListener(_carregarCategorias);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _carregarCategorias();
+    }
+  }
+
+  Future<void> _carregarCategorias() async {
+    final cats = await CategoriaHelper.instance.buscarTodas(widget.usuarioId);
+    if (!mounted) return;
+    setState(() => _categoriasUsuario = cats);
   }
 
   Future<void> _carregar() async {
     List<Gasto> gastos;
     if (_filtro == 'Todos') {
-      gastos = await _db.buscarPorMes(_agora.year, _agora.month, widget.usuarioId);
+      gastos =
+          await _db.buscarPorMes(_agora.year, _agora.month, widget.usuarioId);
     } else {
       gastos = await _db.buscarPorCategoria(_filtro, widget.usuarioId);
     }
@@ -58,8 +87,11 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Histórico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            Text(formatarMesAno(_agora), style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const Text('Histórico',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(formatarMesAno(_agora),
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
           ],
         ),
       ),
@@ -71,7 +103,8 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: ['Todos', ...categorias.map((c) => c.nome)].map((cat) {
+                children: ['Todos', ..._categoriasUsuario.map((c) => c.nome)]
+                    .map((cat) {
                   final ativo = _filtro == cat;
                   return GestureDetector(
                     onTap: () {
@@ -80,9 +113,12 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                     },
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: ativo ? cs.primary.withOpacity(0.12) : cs.onSurface.withOpacity(0.07),
+                        color: ativo
+                            ? cs.primary.withOpacity(0.12)
+                            : cs.onSurface.withOpacity(0.07),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: ativo ? cs.primary : Colors.transparent,
@@ -92,8 +128,11 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                         cat,
                         style: TextStyle(
                           fontSize: 13,
-                          color: ativo ? cs.primary : cs.onSurface.withOpacity(0.6),
-                          fontWeight: ativo ? FontWeight.w600 : FontWeight.normal,
+                          color: ativo
+                              ? cs.primary
+                              : cs.onSurface.withOpacity(0.6),
+                          fontWeight:
+                              ativo ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -133,7 +172,8 @@ class _HistoricoScreenState extends State<HistoricoScreen> {
                               onTap: () async {
                                 await Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => DetalheScreen(gasto: g)),
+                                  MaterialPageRoute(
+                                      builder: (_) => DetalheScreen(gasto: g)),
                                 );
                                 _carregar();
                               },

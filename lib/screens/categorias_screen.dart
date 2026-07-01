@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../database/categoria_helper.dart';
 import '../models/categoria.dart';
+import '../utils/notifiers.dart';
+import '../widgets/emoji_picker_field.dart';
+import '../widgets/color_picker_field.dart';
 
 class CategoriasScreen extends StatefulWidget {
   final int usuarioId;
@@ -77,7 +80,8 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
             child: GestureDetector(
               onTap: _abrirCriar,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: cs.surface,
                   borderRadius: BorderRadius.circular(12),
@@ -97,7 +101,8 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                     const SizedBox(width: 12),
                     const Text(
                       'Criar categoria',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -110,57 +115,70 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Text(
               'Minhas categorias',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.onSurface),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface),
             ),
           ),
           Expanded(
             child: _categorias.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 2.8,
-                    ),
-                    itemCount: _categorias.length,
-                    itemBuilder: (_, i) {
-                      final cat = _categorias[i];
-                      return GestureDetector(
-                        onTap: () => _abrirEditar(cat),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: cs.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: cs.onSurface.withOpacity(0.12)),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: cs.onSurface.withOpacity(0.07),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Text(cat.icone, style: const TextStyle(fontSize: 16)),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  cat.nome,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 600;
+                      return GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: isMobile ? 2 : 8,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: isMobile ? 2.5 : 1.2,
                         ),
+                        itemCount: _categorias.length,
+                        itemBuilder: (_, i) {
+                          final cat = _categorias[i];
+                          return GestureDetector(
+                            onTap: () => _abrirEditar(cat),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: cs.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: cs.onSurface.withOpacity(0.12)),
+                              ),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: cs.onSurface.withOpacity(0.07),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Text(cat.icone,
+                                          style: const TextStyle(fontSize: 16)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      cat.nome,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -186,6 +204,7 @@ class _PopupCriarCategoria extends StatefulWidget {
 class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
   final _nomeController = TextEditingController();
   final _iconeController = TextEditingController();
+  String? _corSelecionada;
   bool _salvando = false;
 
   @override
@@ -199,13 +218,26 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
     if (_nomeController.text.trim().isEmpty) return;
     setState(() => _salvando = true);
 
-    final cat = Categoria(
-      usuarioId: widget.usuarioId,
-      nome: _nomeController.text.trim(),
-      icone: _iconeController.text.trim().isEmpty ? '📦' : _iconeController.text.trim(),
-    );
-    await widget.onSalvar(cat);
-    if (mounted) Navigator.pop(context);
+    try {
+      final cat = Categoria(
+        usuarioId: widget.usuarioId,
+        nome: _nomeController.text.trim(),
+        icone: _iconeController.text.trim().isEmpty
+            ? '📦'
+            : _iconeController.text.trim(),
+        cor: _corSelecionada,
+      );
+      await widget.onSalvar(cat);
+      categoriasNotifier.value++;
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _salvando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -224,7 +256,9 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
-            Text('Nome', style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            Text('Nome',
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
             const SizedBox(height: 6),
             TextField(
               controller: _nomeController,
@@ -232,15 +266,24 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
               autofocus: true,
             ),
             const SizedBox(height: 14),
-            Text('Ícone (digite ou escolha um emoji)',
-                style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            Text('Ícone (escolha um emoji)',
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
             const SizedBox(height: 6),
-            TextField(
+            EmojiPickerField(
               controller: _iconeController,
-              decoration: _inputDec(context, 'Ex: 🐶'),
-              maxLength: 2,
-              buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
-                  const SizedBox.shrink(),
+              hint: 'Ex: 🐶',
+              inputDecoration: _inputDec,
+            ),
+            const SizedBox(height: 14),
+            Text('Cor (opcional)',
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const SizedBox(height: 6),
+            ColorPickerField(
+              selectedColor: _corSelecionada,
+              onColorChanged: (cor) => setState(() => _corSelecionada = cor),
+              hint: 'Digite em hexadecimal (ex: FF0000)',
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -250,7 +293,8 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: cs.primary,
                   foregroundColor: cs.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
                 onPressed: _salvando ? null : _salvar,
@@ -258,7 +302,8 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
                     ? SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: cs.onPrimary),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: cs.onPrimary),
                       )
                     : const Text('Salvar categoria',
                         style: TextStyle(fontWeight: FontWeight.w600)),
@@ -306,6 +351,7 @@ class _PopupEditarCategoria extends StatefulWidget {
 class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
   late final TextEditingController _nomeController;
   late final TextEditingController _iconeController;
+  late String? _corSelecionada;
   bool _salvando = false;
 
   @override
@@ -313,6 +359,7 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
     super.initState();
     _nomeController = TextEditingController(text: widget.categoria.nome);
     _iconeController = TextEditingController(text: widget.categoria.icone);
+    _corSelecionada = widget.categoria.cor;
   }
 
   @override
@@ -326,12 +373,25 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
     if (_nomeController.text.trim().isEmpty) return;
     setState(() => _salvando = true);
 
-    final atualizada = widget.categoria.copyWith(
-      nome: _nomeController.text.trim(),
-      icone: _iconeController.text.trim().isEmpty ? widget.categoria.icone : _iconeController.text.trim(),
-    );
-    await widget.onEditar(atualizada);
-    if (mounted) Navigator.pop(context);
+    try {
+      final atualizada = widget.categoria.copyWith(
+        nome: _nomeController.text.trim(),
+        icone: _iconeController.text.trim().isEmpty
+            ? widget.categoria.icone
+            : _iconeController.text.trim(),
+        cor: _corSelecionada,
+      );
+      await widget.onEditar(atualizada);
+      categoriasNotifier.value++;
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _salvando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _excluir() async {
@@ -339,19 +399,32 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Excluir categoria'),
-        content: const Text('Tem certeza? Os gastos desta categoria não serão apagados.'),
+        content: const Text(
+            'Tem certeza? Os gastos desta categoria não serão apagados.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir', style: TextStyle(color: Color(0xFFA32D2D))),
+            child: const Text('Excluir',
+                style: TextStyle(color: Color(0xFFA32D2D))),
           ),
         ],
       ),
     );
     if (confirmar == true) {
-      await widget.onExcluir();
-      if (mounted) Navigator.pop(context);
+      try {
+        await widget.onExcluir();
+        categoriasNotifier.value++;
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao excluir: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -373,7 +446,9 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
-            Text('Editar nome', style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            Text('Editar nome',
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
             const SizedBox(height: 6),
             TextField(
               controller: _nomeController,
@@ -381,21 +456,32 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
               decoration: _inputDec(context, 'Nome'),
             ),
             const SizedBox(height: 14),
-            Text('Editar ícone', style: TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            Text('Editar ícone',
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
             const SizedBox(height: 6),
-            TextField(
+            EmojiPickerField(
               controller: _iconeController,
-              decoration: _inputDec(context, 'Emoji'),
-              maxLength: 2,
-              buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
-                  const SizedBox.shrink(),
+              hint: 'Emoji',
+              inputDecoration: _inputDec,
+            ),
+            const SizedBox(height: 14),
+            Text('Editar cor (opcional)',
+                style: TextStyle(
+                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
+            const SizedBox(height: 6),
+            ColorPickerField(
+              selectedColor: _corSelecionada,
+              onColorChanged: (cor) => setState(() => _corSelecionada = cor),
+              hint: 'Digite em hexadecimal (ex: FF0000)',
             ),
             if (eFixa)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Categoria padrão — nome não pode ser alterado.',
-                  style: TextStyle(fontSize: 11, color: cs.onSurface.withOpacity(0.35)),
+                  style: TextStyle(
+                      fontSize: 11, color: cs.onSurface.withOpacity(0.35)),
                 ),
               ),
             const SizedBox(height: 20),
@@ -407,7 +493,8 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
                     label: const Text('Editar'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: _salvando ? null : _salvar,
                   ),
@@ -415,12 +502,15 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFA32D2D)),
-                    label: const Text('Excluir', style: TextStyle(color: Color(0xFFA32D2D))),
+                    icon: const Icon(Icons.delete_outline,
+                        size: 16, color: Color(0xFFA32D2D)),
+                    label: const Text('Excluir',
+                        style: TextStyle(color: Color(0xFFA32D2D))),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: const BorderSide(color: Color(0xFFF09595)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: eFixa ? null : _excluir,
                   ),
