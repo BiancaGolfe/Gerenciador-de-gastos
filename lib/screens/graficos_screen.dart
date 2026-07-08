@@ -65,8 +65,10 @@ class GraficosScreen extends StatefulWidget {
 
 class _GraficosScreenState extends State<GraficosScreen> {
   List<Gasto> _gastos = [];
+  List<Gasto> _gastosAno = [];
   List<Categoria> _categorias = [];
   double _total = 0;
+  double _totalAno = 0;
   DateTime _selecionado = mesSelecionado.value;
 
   @override
@@ -108,11 +110,37 @@ class _GraficosScreenState extends State<GraficosScreen> {
       _gastos = gastos;
       _total = total;
     });
+    await _carregarAno();
+  }
+
+  Future<void> _carregarAno() async {
+    final List<Gasto> todos = [];
+    for (var m = 1; m <= 12; m++) {
+      final lista = await DatabaseHelper.instance
+          .buscarPorMes(_selecionado.year, m, widget.usuarioId);
+      todos.addAll(lista);
+    }
+    final totalAno = todos.fold(0.0, (s, g) => s + g.valor);
+    if (!mounted) return;
+    setState(() {
+      _gastosAno = todos;
+      _totalAno = totalAno;
+    });
   }
 
   Map<String, double> _porCategoria() {
     final Map<String, double> mapa = {};
     for (final g in _gastos) {
+      mapa[g.categoria] = (mapa[g.categoria] ?? 0) + g.valor;
+    }
+    final entries = mapa.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return Map.fromEntries(entries);
+  }
+
+  Map<String, double> _porCategoriaAno() {
+    final Map<String, double> mapa = {};
+    for (final g in _gastosAno) {
       mapa[g.categoria] = (mapa[g.categoria] ?? 0) + g.valor;
     }
     final entries = mapa.entries.toList()
@@ -130,6 +158,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
   @override
   Widget build(BuildContext context) {
     final porCat = _porCategoria();
+    final porCatAno = _porCategoriaAno();
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -165,96 +194,171 @@ class _GraficosScreenState extends State<GraficosScreen> {
           ),
         ],
       ),
-      body: _gastos.isEmpty
-          ? Center(
-              child: Text('Nenhum dado ainda.',
-                  style: TextStyle(color: cs.onSurface.withOpacity(0.4))))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _CartaoSecao(
-                  titulo: 'Por categoria',
-                  child: Column(
-                    children: porCat.entries.map((e) {
-                      final pct = _total > 0 ? e.value / _total : 0.0;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Seção mensal: mostra mensagem se não houver gastos no mês
+          if (_gastos.isEmpty)
+            _CartaoSecao(
+              titulo: 'Por categoria',
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text('Nenhum gasto neste mês selecionado.',
+                      style:
+                          TextStyle(color: cs.onSurface.withOpacity(0.5))),
+                ),
+              ),
+            )
+          else
+            _CartaoSecao(
+              titulo: 'Por categoria',
+              child: Column(
+                children: porCat.entries.map((e) {
+                  final pct = _total > 0 ? e.value / _total : 0.0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                          color: _getCor(e.key),
-                                          shape: BoxShape.circle),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(e.key,
-                                        style: const TextStyle(fontSize: 13)),
-                                  ],
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: _getCor(e.key),
+                                      shape: BoxShape.circle),
                                 ),
-                                Text(
-                                  formatarMoeda(e.value),
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600),
-                                ),
+                                const SizedBox(width: 6),
+                                Text(e.key, style: const TextStyle(fontSize: 13)),
                               ],
                             ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: pct,
-                                minHeight: 8,
-                                backgroundColor: cs.onSurface.withOpacity(0.1),
-                                valueColor:
-                                    AlwaysStoppedAnimation(_getCor(e.key)),
-                              ),
+                            Text(
+                              formatarMoeda(e.value),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct,
+                            minHeight: 8,
+                            backgroundColor: cs.onSurface.withOpacity(0.1),
+                            valueColor: AlwaysStoppedAnimation(_getCor(e.key)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          const SizedBox(height: 16),
+          // Distribuição mensal (apenas quando há dados)
+          if (porCat.isNotEmpty)
+            _CartaoSecao(
+              titulo: 'Distribuição',
+              child: SizedBox(
+                height: 200,
+                child: PieChart(
+                  PieChartData(
+                    sections: porCat.entries.map((e) {
+                      final pct = _total > 0 ? (e.value / _total) * 100 : 0.0;
+                      return PieChartSectionData(
+                        value: e.value,
+                        color: _getCor(e.key),
+                        title: '${pct.toStringAsFixed(0)}%',
+                        radius: 60,
+                        titleStyle: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       );
                     }).toList(),
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 40,
                   ),
                 ),
-                const SizedBox(height: 16),
-                if (porCat.isNotEmpty)
-                  _CartaoSecao(
-                    titulo: 'Distribuição',
-                    child: SizedBox(
-                      height: 200,
-                      child: PieChart(
-                        PieChartData(
-                          sections: porCat.entries.map((e) {
-                            final pct =
-                                _total > 0 ? (e.value / _total) * 100 : 0.0;
-                            return PieChartSectionData(
-                              value: e.value,
-                              color: _getCor(e.key),
-                              title: '${pct.toStringAsFixed(0)}%',
-                              radius: 60,
-                              titleStyle: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            );
-                          }).toList(),
-                          sectionsSpace: 2,
-                          centerSpaceRadius: 40,
-                        ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          // Seção anual: sempre visível
+          _CartaoSecao(
+            titulo: 'Distribuição anual',
+            child: Column(
+              children: [
+                if (porCatAno.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Nenhum gasto no ano selecionado.',
+                        style: TextStyle(color: cs.onSurface.withOpacity(0.5))),
+                  )
+                else ...[
+                  SizedBox(
+                    height: 180,
+                    child: PieChart(
+                      PieChartData(
+                        sections: porCatAno.entries.map((e) {
+                          final pct = _totalAno > 0 ? (e.value / _totalAno) * 100 : 0.0;
+                          return PieChartSectionData(
+                            value: e.value,
+                            color: _getCor(e.key),
+                            title: '${pct.toStringAsFixed(0)}%',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          );
+                        }).toList(),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 36,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  ...porCatAno.entries.map((e) {
+                    final pct = _totalAno > 0 ? e.value / _totalAno : 0.0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                    color: _getCor(e.key), shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(e.key, style: const TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                          Text(
+                            formatarMoeda(e.value),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ]
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }
