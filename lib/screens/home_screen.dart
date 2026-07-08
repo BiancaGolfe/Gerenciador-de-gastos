@@ -85,21 +85,36 @@ class _HomeTabState extends State<_HomeTab> {
   List<Gasto> _gastos = [];
   double _total = 0;
   final _db = DatabaseHelper.instance;
-  final _agora = DateTime.now();
+  DateTime _selecionado = mesSelecionado.value;
 
   String get _primeiroNome => widget.usuario?.nome.split(' ').first ?? '';
 
   @override
   void initState() {
     super.initState();
+    mesSelecionado.addListener(_onMesChanged);
+    // Atualizar Home quando houver mudanças nos gastos
+    gastosNotifier.addListener(_carregar);
+    _carregar();
+  }
+
+  @override
+  void dispose() {
+    mesSelecionado.removeListener(_onMesChanged);
+    gastosNotifier.removeListener(_carregar);
+    super.dispose();
+  }
+
+  void _onMesChanged() {
+    setState(() => _selecionado = mesSelecionado.value);
     _carregar();
   }
 
   Future<void> _carregar() async {
     final gastos = await _db.buscarPorMes(
-        _agora.year, _agora.month, widget.usuario?.id ?? 0);
+      _selecionado.year, _selecionado.month, widget.usuario?.id ?? 0);
     final total = await _db.totalDoMes(
-        _agora.year, _agora.month, widget.usuario?.id ?? 0);
+      _selecionado.year, _selecionado.month, widget.usuario?.id ?? 0);
     if (!mounted) return;
     setState(() {
       _gastos = gastos.take(5).toList();
@@ -122,7 +137,7 @@ class _HomeTabState extends State<_HomeTab> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             Text(
-              'Resumo de ${formatarMesAno(_agora)}',
+              'Resumo de ${formatarMesAno(_selecionado)}',
               style:
                   TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5)),
             ),
@@ -138,6 +153,22 @@ class _HomeTabState extends State<_HomeTab> {
               ),
               onPressed: () => temaEscuro.value = !temaEscuro.value,
             ),
+          ),
+          // Botão escolher mês
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _selecionado,
+                firstDate: DateTime(2000),
+                lastDate: DateTime(DateTime.now().year + 5),
+                helpText: 'Escolha mês/ano (selecione qualquer dia do mês desejado)',
+              );
+              if (picked != null) {
+                mesSelecionado.value = DateTime(picked.year, picked.month, 1);
+              }
+            },
           ),
           // Avatar / Entrar
           Padding(
@@ -221,7 +252,7 @@ class _HomeTabState extends State<_HomeTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _CartaoResumo(total: _total, mes: _agora),
+              _CartaoResumo(total: _total, mes: _selecionado),
               const SizedBox(height: 20),
               const Text('Recentes',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),

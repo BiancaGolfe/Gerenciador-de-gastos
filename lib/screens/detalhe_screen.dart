@@ -4,6 +4,7 @@ import '../models/gasto.dart';
 import '../utils/categorias.dart';
 import '../utils/formatters.dart';
 import '../utils/image_helper.dart';
+import '../utils/notifiers.dart';
 import 'cadastro_screen.dart';
 
 class DetalheScreen extends StatelessWidget {
@@ -142,6 +143,7 @@ class DetalheScreen extends StatelessWidget {
 
     if (confirmar == true && gasto.id != null) {
       await DatabaseHelper.instance.excluir(gasto.id!);
+      gastosNotifier.value++;
       if (context.mounted) Navigator.pop(context);
     }
   }

@@ -7,6 +7,7 @@ import '../utils/formatters.dart';
 import '../utils/notifiers.dart';
 import '../widgets/gasto_card.dart';
 import 'detalhe_screen.dart';
+import 'graficos_screen.dart';
 
 class HistoricoScreen extends StatefulWidget {
   final int usuarioId;
@@ -23,23 +24,32 @@ class _HistoricoScreenState extends State<HistoricoScreen>
   List<Categoria> _categoriasUsuario = [];
   String _filtro = 'Todos';
   final _db = DatabaseHelper.instance;
-  final _agora = DateTime.now();
+  DateTime _selecionado = mesSelecionado.value;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    mesSelecionado.addListener(_onMesChanged);
     _carregarCategorias();
     _carregar();
-    // Escutar mudanças de categorias
+    // Escutar mudanças de categorias e gastos
     categoriasNotifier.addListener(_carregarCategorias);
+    gastosNotifier.addListener(_carregar);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    mesSelecionado.removeListener(_onMesChanged);
     categoriasNotifier.removeListener(_carregarCategorias);
+    gastosNotifier.removeListener(_carregar);
     super.dispose();
+  }
+
+  void _onMesChanged() {
+    setState(() => _selecionado = mesSelecionado.value);
+    _carregar();
   }
 
   @override
@@ -58,8 +68,8 @@ class _HistoricoScreenState extends State<HistoricoScreen>
   Future<void> _carregar() async {
     List<Gasto> gastos;
     if (_filtro == 'Todos') {
-      gastos =
-          await _db.buscarPorMes(_agora.year, _agora.month, widget.usuarioId);
+      gastos = await _db.buscarPorMes(
+          _selecionado.year, _selecionado.month, widget.usuarioId);
     } else {
       gastos = await _db.buscarPorCategoria(_filtro, widget.usuarioId);
     }
@@ -89,11 +99,29 @@ class _HistoricoScreenState extends State<HistoricoScreen>
           children: [
             const Text('Histórico',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            Text(formatarMesAno(_agora),
+            Text(formatarMesAno(_selecionado),
                 style: TextStyle(
                     fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _selecionado,
+                firstDate: DateTime(2000),
+                lastDate: DateTime(DateTime.now().year + 5),
+                helpText:
+                    'Escolha mês/ano (selecione qualquer dia do mês desejado)',
+              );
+              if (picked != null) {
+                mesSelecionado.value = DateTime(picked.year, picked.month, 1);
+              }
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

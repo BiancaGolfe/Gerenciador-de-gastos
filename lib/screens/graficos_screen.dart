@@ -8,9 +8,6 @@ import '../utils/categorias.dart';
 import '../utils/formatters.dart';
 import '../utils/notifiers.dart';
 
-// Notificador global para sincronizar gastos
-final gastosNotifier = ValueNotifier<int>(0);
-
 Color _parseHexColor(String? hex) {
   final raw = (hex ?? '').trim().replaceFirst('#', '').toUpperCase();
   if (raw.isEmpty) return Colors.grey;
@@ -70,11 +67,12 @@ class _GraficosScreenState extends State<GraficosScreen> {
   List<Gasto> _gastos = [];
   List<Categoria> _categorias = [];
   double _total = 0;
-  final _agora = DateTime.now();
+  DateTime _selecionado = mesSelecionado.value;
 
   @override
   void initState() {
     super.initState();
+    mesSelecionado.addListener(_onMesChanged);
     _carregar();
     _carregarCategorias();
     // Escutar mudanças de gastos e categorias
@@ -84,9 +82,15 @@ class _GraficosScreenState extends State<GraficosScreen> {
 
   @override
   void dispose() {
+    mesSelecionado.removeListener(_onMesChanged);
     gastosNotifier.removeListener(_carregar);
     categoriasNotifier.removeListener(_carregarCategorias);
     super.dispose();
+  }
+
+  void _onMesChanged() {
+    setState(() => _selecionado = mesSelecionado.value);
+    _carregar();
   }
 
   Future<void> _carregarCategorias() async {
@@ -97,7 +101,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
 
   Future<void> _carregar() async {
     final gastos = await DatabaseHelper.instance
-        .buscarPorMes(_agora.year, _agora.month, widget.usuarioId);
+        .buscarPorMes(_selecionado.year, _selecionado.month, widget.usuarioId);
     final total = gastos.fold(0.0, (s, g) => s + g.valor);
     if (!mounted) return;
     setState(() {
@@ -137,12 +141,29 @@ class _GraficosScreenState extends State<GraficosScreen> {
             const Text('Gráficos',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             Text(
-              '${formatarMesAno(_agora)} — ${formatarMoeda(_total)}',
+              '${formatarMesAno(_selecionado)} — ${formatarMoeda(_total)}',
               style:
                   TextStyle(fontSize: 12, color: cs.onSurface.withOpacity(0.5)),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _selecionado,
+                firstDate: DateTime(2000),
+                lastDate: DateTime(DateTime.now().year + 5),
+                helpText: 'Escolha mês/ano (selecione qualquer dia do mês desejado)',
+              );
+              if (picked != null) {
+                mesSelecionado.value = DateTime(picked.year, picked.month, 1);
+              }
+            },
+          ),
+        ],
       ),
       body: _gastos.isEmpty
           ? Center(

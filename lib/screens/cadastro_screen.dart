@@ -13,6 +13,7 @@ import '../utils/image_helper_web.dart'
 import '../widgets/emoji_picker_field.dart';
 import '../widgets/color_picker_field.dart';
 import 'graficos_screen.dart';
+import '../utils/notifiers.dart';
 
 class CadastroScreen extends StatefulWidget {
   final Gasto? gastoParaEditar;
@@ -165,6 +166,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
         onSalvar: (cat) async {
           final nova = await CategoriaHelper.instance.inserir(cat);
           await _carregarCategorias();
+          // Notificar outras telas que a lista de categorias mudou
+          categoriasNotifier.value++;
+          if (!mounted) return;
           setState(() => _categoriaSelecionada = nova.nome);
         },
       ),
@@ -465,71 +469,102 @@ class _PopupCriarCategoriaInlineState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final viewInsets = MediaQuery.of(context).viewInsets;
+    final maxHeight = (MediaQuery.of(context).size.height - viewInsets.bottom) * 0.85;
+
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Criar categoria',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            Text('Nome',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nomeController,
-              autofocus: true,
-              decoration: _inputDec(context, 'Ex: Pets'),
-            ),
-            const SizedBox(height: 14),
-            Text('Ícone (escolha um emoji)',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            EmojiPickerField(
-              controller: _iconeController,
-              hint: 'Ex: 🐶',
-              inputDecoration: _inputDec,
-            ),
-            const SizedBox(height: 14),
-            Text('Cor (opcional)',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            ColorPickerField(
-              selectedColor: _corSelecionada,
-              onColorChanged: (cor) => setState(() => _corSelecionada = cor),
-              hint: 'Digite em hexadecimal (ex: FF0000)',
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                onPressed: _salvando ? null : _salvar,
-                child: _salvando
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: cs.onPrimary),
-                      )
-                    : const Text('Salvar categoria',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 20 + viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Criar categoria',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                'Nome',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _nomeController,
+                autofocus: true,
+                decoration: _inputDec(context, 'Ex: Pets'),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Ícone (escolha um emoji)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              EmojiPickerField(
+                controller: _iconeController,
+                hint: 'Ex: 🐶',
+                inputDecoration: _inputDec,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Cor (opcional)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              ColorPickerField(
+                selectedColor: _corSelecionada,
+                onColorChanged: (cor) => setState(() => _corSelecionada = cor),
+                hint: 'Digite em hexadecimal (ex: FF0000)',
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _salvando ? null : _salvar,
+                  child: _salvando
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cs.onPrimary,
+                          ),
+                        )
+                      : const Text(
+                          'Salvar categoria',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

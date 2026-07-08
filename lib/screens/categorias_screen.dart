@@ -5,6 +5,22 @@ import '../utils/notifiers.dart';
 import '../widgets/emoji_picker_field.dart';
 import '../widgets/color_picker_field.dart';
 
+// Helper de decoração utilizado pelos popups
+InputDecoration _inputDec(BuildContext context, String hint) {
+  final cs = Theme.of(context).colorScheme;
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: cs.onSurface.withOpacity(0.35)),
+    filled: true,
+    fillColor: cs.onSurface.withOpacity(0.06),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide.none,
+    ),
+  );
+}
+
 class CategoriasScreen extends StatefulWidget {
   final int usuarioId;
 
@@ -21,6 +37,13 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
   void initState() {
     super.initState();
     _carregar();
+    categoriasNotifier.addListener(_carregar);
+  }
+
+  @override
+  void dispose() {
+    categoriasNotifier.removeListener(_carregar);
+    super.dispose();
   }
 
   Future<void> _carregar() async {
@@ -243,89 +266,103 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Criar categoria',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            Text('Nome',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nomeController,
-              decoration: _inputDec(context, 'Ex: Pets'),
-              autofocus: true,
-            ),
-            const SizedBox(height: 14),
-            Text('Ícone (escolha um emoji)',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            EmojiPickerField(
-              controller: _iconeController,
-              hint: 'Ex: 🐶',
-              inputDecoration: _inputDec,
-            ),
-            const SizedBox(height: 14),
-            Text('Cor (opcional)',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            ColorPickerField(
-              selectedColor: _corSelecionada,
-              onColorChanged: (cor) => setState(() => _corSelecionada = cor),
-              hint: 'Digite em hexadecimal (ex: FF0000)',
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                onPressed: _salvando ? null : _salvar,
-                child: _salvando
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: cs.onPrimary),
-                      )
-                    : const Text('Salvar categoria',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    final viewInsets = MediaQuery.of(context).viewInsets;
+    final maxHeight = MediaQuery.of(context).size.height * 0.85;
 
-  InputDecoration _inputDec(BuildContext context, String hint) {
-    final cs = Theme.of(context).colorScheme;
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: cs.onSurface.withOpacity(0.35)),
-      filled: true,
-      fillColor: cs.onSurface.withOpacity(0.06),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 20 + viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Criar categoria',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Nome',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _nomeController,
+                decoration: _inputDec(context, 'Ex: Pets'),
+                autofocus: true,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Ícone (escolha um emoji)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              EmojiPickerField(
+                controller: _iconeController,
+                hint: 'Ex: 🐶',
+                inputDecoration: _inputDec,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Cor (opcional)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              ColorPickerField(
+                selectedColor: _corSelecionada,
+                onColorChanged: (cor) => setState(() => _corSelecionada = cor),
+                hint: 'Digite em hexadecimal (ex: FF0000)',
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _salvando ? null : _salvar,
+                  child: _salvando
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: cs.onPrimary,
+                          ),
+                        )
+                      : const Text(
+                          'Salvar categoria',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -432,108 +469,125 @@ class _PopupEditarCategoriaState extends State<_PopupEditarCategoria> {
   Widget build(BuildContext context) {
     final eFixa = widget.categoria.fixa;
     final cs = Theme.of(context).colorScheme;
+    final viewInsets = MediaQuery.of(context).viewInsets;
+    final maxHeight = MediaQuery.of(context).size.height * 0.85;
 
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Editar categoria',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            Text('Editar nome',
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 20 + viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Editar categoria',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Editar nome',
                 style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nomeController,
-              enabled: !eFixa,
-              decoration: _inputDec(context, 'Nome'),
-            ),
-            const SizedBox(height: 14),
-            Text('Editar ícone',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            EmojiPickerField(
-              controller: _iconeController,
-              hint: 'Emoji',
-              inputDecoration: _inputDec,
-            ),
-            const SizedBox(height: 14),
-            Text('Editar cor (opcional)',
-                style: TextStyle(
-                    fontSize: 12, color: cs.onSurface.withOpacity(0.5))),
-            const SizedBox(height: 6),
-            ColorPickerField(
-              selectedColor: _corSelecionada,
-              onColorChanged: (cor) => setState(() => _corSelecionada = cor),
-              hint: 'Digite em hexadecimal (ex: FF0000)',
-            ),
-            if (eFixa)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Categoria padrão — nome não pode ser alterado.',
-                  style: TextStyle(
-                      fontSize: 11, color: cs.onSurface.withOpacity(0.35)),
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
                 ),
               ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Editar'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _nomeController,
+                enabled: !eFixa,
+                decoration: _inputDec(context, 'Nome'),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Editar ícone',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              EmojiPickerField(
+                controller: _iconeController,
+                hint: 'Emoji',
+                inputDecoration: _inputDec,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Editar cor (opcional)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 6),
+              ColorPickerField(
+                selectedColor: _corSelecionada,
+                onColorChanged: (cor) => setState(() => _corSelecionada = cor),
+                hint: 'Digite em hexadecimal (ex: FF0000)',
+              ),
+              if (eFixa)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Categoria padrão — nome não pode ser alterado.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurface.withOpacity(0.35),
                     ),
-                    onPressed: _salvando ? null : _salvar,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.delete_outline,
-                        size: 16, color: Color(0xFFA32D2D)),
-                    label: const Text('Excluir',
-                        style: TextStyle(color: Color(0xFFA32D2D))),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Color(0xFFF09595)),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Editar'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: _salvando ? null : _salvar,
                     ),
-                    onPressed: eFixa ? null : _excluir,
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: Color(0xFFA32D2D),
+                      ),
+                      label: const Text(
+                        'Excluir',
+                        style: TextStyle(color: Color(0xFFA32D2D)),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: const BorderSide(color: Color(0xFFF09595)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: eFixa ? null : _excluir,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDec(BuildContext context, String hint) {
-    final cs = Theme.of(context).colorScheme;
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: cs.onSurface.withOpacity(0.35)),
-      filled: true,
-      fillColor: cs.onSurface.withOpacity(0.06),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
       ),
     );
   }
