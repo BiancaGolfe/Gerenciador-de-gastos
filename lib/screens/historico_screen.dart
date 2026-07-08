@@ -1,13 +1,11 @@
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
-import '../database/categoria_helper.dart';
 import '../models/gasto.dart';
-import '../models/categoria.dart';
 import '../utils/formatters.dart';
 import '../utils/notifiers.dart';
 import '../widgets/gasto_card.dart';
 import 'detalhe_screen.dart';
-import 'graficos_screen.dart';
 
 class HistoricoScreen extends StatefulWidget {
   final int usuarioId;
@@ -21,7 +19,7 @@ class HistoricoScreen extends StatefulWidget {
 class _HistoricoScreenState extends State<HistoricoScreen>
     with WidgetsBindingObserver {
   List<Gasto> _gastos = [];
-  List<Categoria> _categoriasUsuario = [];
+  List<String> _categoriasDaBarra = [];
   String _filtro = 'Todos';
   final _db = DatabaseHelper.instance;
   DateTime _selecionado = mesSelecionado.value;
@@ -31,10 +29,8 @@ class _HistoricoScreenState extends State<HistoricoScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     mesSelecionado.addListener(_onMesChanged);
-    _carregarCategorias();
     _carregar();
-    // Escutar mudanças de categorias e gastos
-    categoriasNotifier.addListener(_carregarCategorias);
+    // Escutar mudanças de gastos para atualizar a barra automaticamente
     gastosNotifier.addListener(_carregar);
   }
 
@@ -42,7 +38,6 @@ class _HistoricoScreenState extends State<HistoricoScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     mesSelecionado.removeListener(_onMesChanged);
-    categoriasNotifier.removeListener(_carregarCategorias);
     gastosNotifier.removeListener(_carregar);
     super.dispose();
   }
@@ -55,14 +50,8 @@ class _HistoricoScreenState extends State<HistoricoScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _carregarCategorias();
+      _carregar();
     }
-  }
-
-  Future<void> _carregarCategorias() async {
-    final cats = await CategoriaHelper.instance.buscarTodas(widget.usuarioId);
-    if (!mounted) return;
-    setState(() => _categoriasUsuario = cats);
   }
 
   Future<void> _carregar() async {
@@ -74,7 +63,20 @@ class _HistoricoScreenState extends State<HistoricoScreen>
       gastos = await _db.buscarPorCategoria(_filtro, widget.usuarioId);
     }
     if (!mounted) return;
-    setState(() => _gastos = gastos);
+    final categorias = LinkedHashSet<String>.from(
+      gastos.map((g) => g.categoria).where((c) => c.trim().isNotEmpty),
+    ).toList();
+
+    if (_filtro != 'Todos' && !categorias.contains(_filtro)) {
+      setState(() => _filtro = 'Todos');
+      await _carregar();
+      return;
+    }
+
+    setState(() {
+      _gastos = gastos;
+      _categoriasDaBarra = categorias;
+    });
   }
 
   Map<String, List<Gasto>> _agruparPorDia() {
@@ -128,45 +130,57 @@ class _HistoricoScreenState extends State<HistoricoScreen>
           Container(
             color: cs.surface,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: ['Todos', ..._categoriasUsuario.map((c) => c.nome)]
-                    .map((cat) {
-                  final ativo = _filtro == cat;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => _filtro = cat);
-                      _carregar();
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: ativo
-                            ? cs.primary.withOpacity(0.12)
-                            : cs.onSurface.withOpacity(0.07),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: ativo ? cs.primary : Colors.transparent,
-                        ),
-                      ),
-                      child: Text(
-                        cat,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: ativo
-                              ? cs.primary
-                              : cs.onSurface.withOpacity(0.6),
-                          fontWeight:
-                              ativo ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final filtros = [
+                  'Todos',
+                  ..._categoriasDaBarra,
+                ];
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: filtros.map((cat) {
+                        final ativo = _filtro == cat;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() => _filtro = cat);
+                            _carregar();
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: ativo
+                                  ? cs.primary.withOpacity(0.12)
+                                  : cs.onSurface.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: ativo ? cs.primary : Colors.transparent,
+                              ),
+                            ),
+                            child: Text(
+                              cat,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: ativo
+                                    ? cs.primary
+                                    : cs.onSurface.withOpacity(0.6),
+                                fontWeight:
+                                    ativo ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
-              ),
+                  ),
+                );
+              },
             ),
           ),
           Expanded(

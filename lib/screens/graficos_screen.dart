@@ -8,6 +8,8 @@ import '../utils/categorias.dart';
 import '../utils/formatters.dart';
 import '../utils/notifiers.dart';
 
+enum _TipoGrafico { rosca, coluna }
+
 Color _parseHexColor(String? hex) {
   final raw = (hex ?? '').trim().replaceFirst('#', '').toUpperCase();
   if (raw.isEmpty) return Colors.grey;
@@ -70,6 +72,8 @@ class _GraficosScreenState extends State<GraficosScreen> {
   double _total = 0;
   double _totalAno = 0;
   DateTime _selecionado = mesSelecionado.value;
+  _TipoGrafico _graficoMensal = _TipoGrafico.rosca;
+  _TipoGrafico _graficoAnual = _TipoGrafico.rosca;
 
   @override
   void initState() {
@@ -152,6 +156,234 @@ class _GraficosScreenState extends State<GraficosScreen> {
     return resolverCorCategoria(
       nomeCategoria: nomeCategoria,
       categorias: _categorias,
+    );
+  }
+
+  void _alternarGraficoMensal() {
+    setState(() {
+      _graficoMensal = _graficoMensal == _TipoGrafico.rosca
+          ? _TipoGrafico.coluna
+          : _TipoGrafico.rosca;
+    });
+  }
+
+  void _alternarGraficoAnual() {
+    setState(() {
+      _graficoAnual = _graficoAnual == _TipoGrafico.rosca
+          ? _TipoGrafico.coluna
+          : _TipoGrafico.rosca;
+    });
+  }
+
+  Widget _botaoTipoGrafico({
+    required _TipoGrafico tipoAtual,
+    required VoidCallback onPressed,
+  }) {
+    final exibindoRosca = tipoAtual == _TipoGrafico.rosca;
+    return IconButton(
+      visualDensity: VisualDensity.compact,
+      tooltip: exibindoRosca ? 'Ver gráfico de coluna' : 'Ver gráfico de rosca',
+      icon: Icon(
+        exibindoRosca ? Icons.bar_chart_outlined : Icons.donut_large_outlined,
+        size: 20,
+      ),
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _graficoRosca({
+    required Map<String, double> dados,
+    required double total,
+    required double altura,
+    required double raio,
+    required double centro,
+  }) {
+    return Center(
+      child: SizedBox(
+        height: altura,
+        child: PieChart(
+          PieChartData(
+            sections: dados.entries.map((e) {
+              final pct = total > 0 ? (e.value / total) * 100 : 0.0;
+              return PieChartSectionData(
+                value: e.value,
+                color: _getCor(e.key),
+                title: '${pct.toStringAsFixed(0)}%',
+                radius: raio,
+                titleStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              );
+            }).toList(),
+            sectionsSpace: 2,
+            centerSpaceRadius: centro,
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _intervaloEixoDinamico(double maiorValor) {
+    if (maiorValor <= 0) return 1.0;
+    final alvo = maiorValor / 6;
+    const opcoes = [25.0, 50.0, 100.0, 150.0, 200.0, 250.0, 500.0, 1000.0];
+    for (final opcao in opcoes) {
+      if (alvo <= opcao) return opcao;
+    }
+    return (alvo / 1000).ceil() * 1000.0;
+  }
+
+  Widget _graficoColuna({
+    required Map<String, double> dados,
+    required double total,
+    required double altura,
+    required bool mostrarLegenda,
+    double? intervaloEixo,
+    bool maximoExato = false,
+  }) {
+    final entries = dados.entries.toList();
+    final maiorValor = entries.fold<double>(0, (maior, e) => e.value > maior ? e.value : maior);
+    final espacamentoPorBarra = entries.length <= 4
+      ? 74.0
+      : entries.length <= 7
+        ? 62.0
+        : entries.length <= 10
+          ? 52.0
+          : 44.0;
+    final largura = entries.isEmpty
+      ? 260.0
+      : (entries.length * espacamentoPorBarra).clamp(260.0, 620.0).toDouble();
+    final intervalo = intervaloEixo != null && intervaloEixo > 0
+        ? intervaloEixo
+        : _intervaloEixoDinamico(maiorValor);
+    final maxY = maiorValor <= 0
+        ? intervalo
+        : maximoExato
+            ? maiorValor
+            : (maiorValor * 1.15 / intervalo).ceil() * intervalo;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Center(
+          child: SizedBox(
+            height: altura,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Center(
+                child: SizedBox(
+                  width: largura,
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: maxY,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          tooltipMargin: 8,
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final item = entries[group.x.toInt()];
+                            return BarTooltipItem(
+                              '${item.key}\n${formatarMoeda(item.value)}',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 44,
+                            interval: intervalo,
+                            getTitlesWidget: (value, meta) {
+                              return SideTitleWidget(
+                                axisSide: meta.axisSide,
+                                child: Text(
+                                  value.round().toString(),
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.55),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        bottomTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: intervalo,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08),
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      barGroups: entries.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final item = entry.value;
+                        return BarChartGroupData(
+                          x: index,
+                          barRods: [
+                            BarChartRodData(
+                              toY: item.value,
+                              width: 18,
+                              borderRadius: BorderRadius.circular(6),
+                              color: _getCor(item.key),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (mostrarLegenda) ...[
+          const SizedBox(height: 12),
+          ...entries.map((e) {
+            final pct = total > 0 ? e.value / total : 0.0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(color: _getCor(e.key), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(e.key, style: const TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                  Text(
+                    '${formatarMoeda(e.value)}  (${(pct * 100).toStringAsFixed(0)}%)',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
     );
   }
 
@@ -265,34 +497,33 @@ class _GraficosScreenState extends State<GraficosScreen> {
           if (porCat.isNotEmpty)
             _CartaoSecao(
               titulo: 'Distribuição',
-              child: SizedBox(
-                height: 200,
-                child: PieChart(
-                  PieChartData(
-                    sections: porCat.entries.map((e) {
-                      final pct = _total > 0 ? (e.value / _total) * 100 : 0.0;
-                      return PieChartSectionData(
-                        value: e.value,
-                        color: _getCor(e.key),
-                        title: '${pct.toStringAsFixed(0)}%',
-                        radius: 60,
-                        titleStyle: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      );
-                    }).toList(),
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                  ),
-                ),
+              trailing: _botaoTipoGrafico(
+                tipoAtual: _graficoMensal,
+                onPressed: _alternarGraficoMensal,
               ),
+              child: _graficoMensal == _TipoGrafico.rosca
+                  ? _graficoRosca(
+                      dados: porCat,
+                      total: _total,
+                      altura: 200,
+                      raio: 60,
+                      centro: 40,
+                    )
+                  : _graficoColuna(
+                      dados: porCat,
+                      total: _total,
+                      altura: 220,
+                      mostrarLegenda: false,
+                    ),
             ),
           const SizedBox(height: 16),
           // Seção anual: sempre visível
           _CartaoSecao(
             titulo: 'Distribuição anual',
+            trailing: _botaoTipoGrafico(
+              tipoAtual: _graficoAnual,
+              onPressed: _alternarGraficoAnual,
+            ),
             child: Column(
               children: [
                 if (porCatAno.isEmpty)
@@ -301,33 +532,16 @@ class _GraficosScreenState extends State<GraficosScreen> {
                     child: Text('Nenhum gasto no ano selecionado.',
                         style: TextStyle(color: cs.onSurface.withOpacity(0.5))),
                   )
-                else ...[
-                  SizedBox(
-                    height: 180,
-                    child: PieChart(
-                      PieChartData(
-                        sections: porCatAno.entries.map((e) {
-                          final pct = _totalAno > 0 ? (e.value / _totalAno) * 100 : 0.0;
-                          return PieChartSectionData(
-                            value: e.value,
-                            color: _getCor(e.key),
-                            title: '${pct.toStringAsFixed(0)}%',
-                            radius: 50,
-                            titleStyle: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          );
-                        }).toList(),
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 36,
-                      ),
-                    ),
+                else if (_graficoAnual == _TipoGrafico.rosca) ...[
+                  _graficoRosca(
+                    dados: porCatAno,
+                    total: _totalAno,
+                    altura: 180,
+                    raio: 50,
+                    centro: 36,
                   ),
                   const SizedBox(height: 12),
                   ...porCatAno.entries.map((e) {
-                    final pct = _totalAno > 0 ? e.value / _totalAno : 0.0;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
@@ -352,7 +566,16 @@ class _GraficosScreenState extends State<GraficosScreen> {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
+                ] else ...[
+                  _graficoColuna(
+                    dados: porCatAno,
+                    total: _totalAno,
+                    altura: 220,
+                    mostrarLegenda: true,
+                    intervaloEixo: 500,
+                    maximoExato: false,
+                  ),
                 ]
               ],
             ),
@@ -365,9 +588,10 @@ class _GraficosScreenState extends State<GraficosScreen> {
 
 class _CartaoSecao extends StatelessWidget {
   final String titulo;
+  final Widget? trailing;
   final Widget child;
 
-  const _CartaoSecao({required this.titulo, required this.child});
+  const _CartaoSecao({required this.titulo, this.trailing, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -382,14 +606,21 @@ class _CartaoSecao extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            titulo,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface.withOpacity(0.5),
-              letterSpacing: 0.5,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface.withOpacity(0.5),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
           ),
           const SizedBox(height: 14),
           child,
