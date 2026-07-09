@@ -260,7 +260,7 @@ class _HomeTabState extends State<_HomeTab> {
                 initialDate: _selecionado,
                 firstDate: DateTime(2000),
                 lastDate: DateTime(DateTime.now().year + 5),
-                helpText: 'Escolha mês/ano (selecione qualquer dia do mês desejado)',
+                helpText: 'Escolha mês/ano',
               );
               if (picked != null) {
                 mesSelecionado.value = DateTime(picked.year, picked.month, 1);

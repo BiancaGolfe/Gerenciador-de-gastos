@@ -130,7 +130,7 @@ class _HistoricoScreenState extends State<HistoricoScreen>
                 firstDate: DateTime(2000),
                 lastDate: DateTime(DateTime.now().year + 5),
                 helpText:
-                    'Escolha mês/ano (selecione qualquer dia do mês desejado)',
+                    'Escolha mês/ano',
               );
               if (picked != null) {
                 mesSelecionado.value = DateTime(picked.year, picked.month, 1);

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../database/database_helper.dart';
@@ -74,6 +76,9 @@ class _GraficosScreenState extends State<GraficosScreen> {
   DateTime _selecionado = mesSelecionado.value;
   _TipoGrafico _graficoMensal = _TipoGrafico.rosca;
   _TipoGrafico _graficoAnual = _TipoGrafico.rosca;
+  bool _porCategoriaExpandido = false;
+
+  static const _limiteCategoriasVisiveis = 4;
 
   @override
   void initState() {
@@ -95,7 +100,10 @@ class _GraficosScreenState extends State<GraficosScreen> {
   }
 
   void _onMesChanged() {
-    setState(() => _selecionado = mesSelecionado.value);
+    setState(() {
+      _selecionado = mesSelecionado.value;
+      _porCategoriaExpandido = false;
+    });
     _carregar();
   }
 
@@ -156,6 +164,93 @@ class _GraficosScreenState extends State<GraficosScreen> {
     return resolverCorCategoria(
       nomeCategoria: nomeCategoria,
       categorias: _categorias,
+    );
+  }
+
+  Widget _itemLegendaCategoria({
+    required MapEntry<String, double> entry,
+    required double total,
+    required ColorScheme cs,
+  }) {
+    final pct = total > 0 ? entry.value / total : 0.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _getCor(entry.key),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(entry.key, style: const TextStyle(fontSize: 13)),
+                ],
+              ),
+              Text(
+                formatarMoeda(entry.value),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 8,
+              backgroundColor: cs.onSurface.withOpacity(0.1),
+              valueColor: AlwaysStoppedAnimation(_getCor(entry.key)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendaPorCategoria({
+    required Map<String, double> dados,
+    required double total,
+    required ColorScheme cs,
+    required bool expandido,
+    required VoidCallback onAlternarExpansao,
+  }) {
+    final entries = dados.entries.toList();
+    final temMais = entries.length > _limiteCategoriasVisiveis;
+    final visiveis = expandido || !temMais
+        ? entries
+        : entries.take(_limiteCategoriasVisiveis).toList();
+
+    return Column(
+      children: [
+        ...visiveis.map(
+          (e) => _itemLegendaCategoria(entry: e, total: total, cs: cs),
+        ),
+        if (temMais)
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: onAlternarExpansao,
+              icon: Icon(
+                expandido ? Icons.expand_less : Icons.expand_more,
+                size: 20,
+              ),
+              label: Text(
+                expandido
+                    ? 'Mostrar menos'
+                    : 'Ver mais ${entries.length - _limiteCategoriasVisiveis} categorias',
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -225,14 +320,48 @@ class _GraficosScreenState extends State<GraficosScreen> {
     );
   }
 
-  double _intervaloEixoDinamico(double maiorValor) {
-    if (maiorValor <= 0) return 1.0;
-    final alvo = maiorValor / 6;
-    const opcoes = [25.0, 50.0, 100.0, 150.0, 200.0, 250.0, 500.0, 1000.0];
-    for (final opcao in opcoes) {
-      if (alvo <= opcao) return opcao;
+  ({double minY, double maxY, double intervalo}) _escalaEixoDinamico(
+    double maiorValor,
+  ) {
+    if (maiorValor <= 0) {
+      return (minY: 0, maxY: 10, intervalo: 2);
     }
-    return (alvo / 1000).ceil() * 1000.0;
+
+    const divisoesAlvo = 5;
+    final valorComMargem = maiorValor * 1.12;
+    final bruto = valorComMargem / divisoesAlvo;
+    final magnitude =
+        math.pow(10, (math.log(bruto) / math.ln10).floor()).toDouble();
+    final normalizado = bruto / magnitude;
+
+    final double nice;
+    if (normalizado <= 1) {
+      nice = 1;
+    } else if (normalizado <= 2) {
+      nice = 2;
+    } else if (normalizado <= 2.5) {
+      nice = 2.5;
+    } else if (normalizado <= 5) {
+      nice = 5;
+    } else {
+      nice = 10;
+    }
+
+    final intervalo = nice * magnitude;
+    final maxY = (valorComMargem / intervalo).ceil() * intervalo;
+    return (minY: 0, maxY: maxY, intervalo: intervalo);
+  }
+
+  String _formatarRotuloEixoY(double value, double intervalo) {
+    if (intervalo < 1) {
+      return value.toStringAsFixed(1);
+    }
+    if (intervalo < 10 && value < 100) {
+      return value == value.roundToDouble()
+          ? value.round().toString()
+          : value.toStringAsFixed(1);
+    }
+    return value.round().toString();
   }
 
   Widget _graficoColuna({
@@ -244,25 +373,22 @@ class _GraficosScreenState extends State<GraficosScreen> {
     bool maximoExato = false,
   }) {
     final entries = dados.entries.toList();
-    final maiorValor = entries.fold<double>(0, (maior, e) => e.value > maior ? e.value : maior);
-    final espacamentoPorBarra = entries.length <= 4
-      ? 74.0
-      : entries.length <= 7
-        ? 62.0
-        : entries.length <= 10
-          ? 52.0
-          : 44.0;
-    final largura = entries.isEmpty
-      ? 260.0
-      : (entries.length * espacamentoPorBarra).clamp(260.0, 620.0).toDouble();
+    final maiorValor = entries.fold<double>(
+      0,
+      (maior, e) => e.value > maior ? e.value : maior,
+    );
+    final escala = _escalaEixoDinamico(maiorValor);
     final intervalo = intervaloEixo != null && intervaloEixo > 0
         ? intervaloEixo
-        : _intervaloEixoDinamico(maiorValor);
+        : escala.intervalo;
+    final minY = 0.0;
     final maxY = maiorValor <= 0
         ? intervalo
         : maximoExato
             ? maiorValor
-            : (maiorValor * 1.15 / intervalo).ceil() * intervalo;
+            : intervaloEixo != null && intervaloEixo > 0
+                ? (maiorValor * 1.12 / intervalo).ceil() * intervalo
+                : escala.maxY;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -270,14 +396,37 @@ class _GraficosScreenState extends State<GraficosScreen> {
         Center(
           child: SizedBox(
             height: altura,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Center(
-                child: SizedBox(
-                  width: largura,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final quantidade = entries.length;
+                final larguraDisponivel = constraints.maxWidth.isFinite
+                    ? constraints.maxWidth
+                    : MediaQuery.of(context).size.width - 64;
+                final larguraBarra = quantidade <= 4
+                    ? 18.0
+                    : quantidade <= 7
+                        ? 16.0
+                        : quantidade <= 10
+                            ? 13.0
+                            : quantidade <= 14
+                                ? 10.0
+                                : 8.0;
+                final areaPlotagem =
+                    (larguraDisponivel - 44).clamp(120.0, double.infinity);
+                final espacoEntreGrupos = quantidade <= 1
+                    ? 0.0
+                    : ((areaPlotagem - (quantidade * larguraBarra)) /
+                            (quantidade - 1))
+                        .clamp(2.0, 26.0)
+                        .toDouble();
+
+                return SizedBox(
+                  width: larguraDisponivel,
                   child: BarChart(
                     BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
+                      alignment: BarChartAlignment.center,
+                      groupsSpace: espacoEntreGrupos,
+                      minY: minY,
                       maxY: maxY,
                       barTouchData: BarTouchData(
                         enabled: true,
@@ -308,7 +457,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
                               return SideTitleWidget(
                                 axisSide: meta.axisSide,
                                 child: Text(
-                                  value.round().toString(),
+                                  _formatarRotuloEixoY(value, intervalo),
                                   style: TextStyle(
                                     fontSize: 9,
                                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.55),
@@ -340,7 +489,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
                           barRods: [
                             BarChartRodData(
                               toY: item.value,
-                              width: 18,
+                              width: larguraBarra,
                               borderRadius: BorderRadius.circular(6),
                               color: _getCor(item.key),
                             ),
@@ -349,8 +498,8 @@ class _GraficosScreenState extends State<GraficosScreen> {
                       }).toList(),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -417,7 +566,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
                 initialDate: _selecionado,
                 firstDate: DateTime(2000),
                 lastDate: DateTime(DateTime.now().year + 5),
-                helpText: 'Escolha mês/ano (selecione qualquer dia do mês desejado)',
+                helpText: 'Escolha mês/ano',
               );
               if (picked != null) {
                 mesSelecionado.value = DateTime(picked.year, picked.month, 1);
@@ -445,51 +594,14 @@ class _GraficosScreenState extends State<GraficosScreen> {
           else
             _CartaoSecao(
               titulo: 'Por categoria',
-              child: Column(
-                children: porCat.entries.map((e) {
-                  final pct = _total > 0 ? e.value / _total : 0.0;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                      color: _getCor(e.key),
-                                      shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(e.key, style: const TextStyle(fontSize: 13)),
-                              ],
-                            ),
-                            Text(
-                              formatarMoeda(e.value),
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: pct,
-                            minHeight: 8,
-                            backgroundColor: cs.onSurface.withOpacity(0.1),
-                            valueColor: AlwaysStoppedAnimation(_getCor(e.key)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+              child: _legendaPorCategoria(
+                dados: porCat,
+                total: _total,
+                cs: cs,
+                expandido: _porCategoriaExpandido,
+                onAlternarExpansao: () {
+                  setState(() => _porCategoriaExpandido = !_porCategoriaExpandido);
+                },
               ),
             ),
           const SizedBox(height: 16),
@@ -573,7 +685,6 @@ class _GraficosScreenState extends State<GraficosScreen> {
                     total: _totalAno,
                     altura: 220,
                     mostrarLegenda: true,
-                    intervaloEixo: 500,
                     maximoExato: false,
                   ),
                 ]
