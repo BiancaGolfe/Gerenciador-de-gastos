@@ -1,6 +1,8 @@
 import 'dart:collection';
 import 'package:flutter/material.dart';
+import '../database/categoria_helper.dart';
 import '../database/database_helper.dart';
+import '../models/categoria.dart';
 import '../models/gasto.dart';
 import '../utils/formatters.dart';
 import '../utils/notifiers.dart';
@@ -23,6 +25,7 @@ class _HistoricoScreenState extends State<HistoricoScreen>
   String _filtro = 'Todos';
   final _db = DatabaseHelper.instance;
   DateTime _selecionado = mesSelecionado.value;
+  Map<String, Categoria> _categoriasPorNome = {};
 
   @override
   void initState() {
@@ -47,6 +50,16 @@ class _HistoricoScreenState extends State<HistoricoScreen>
     _carregar();
   }
 
+  Future<void> _carregarCategorias() async {
+    final categorias = await CategoriaHelper.instance.buscarTodas(widget.usuarioId);
+    if (!mounted) return;
+    setState(() {
+      _categoriasPorNome = {
+        for (final cat in categorias) cat.nome: cat,
+      };
+    });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -66,6 +79,7 @@ class _HistoricoScreenState extends State<HistoricoScreen>
     final categorias = LinkedHashSet<String>.from(
       gastos.map((g) => g.categoria).where((c) => c.trim().isNotEmpty),
     ).toList();
+    await _carregarCategorias();
 
     if (_filtro != 'Todos' && !categorias.contains(_filtro)) {
       setState(() => _filtro = 'Todos');
@@ -209,8 +223,17 @@ class _HistoricoScreenState extends State<HistoricoScreen>
                             ),
                           ),
                           ...entry.value.map(
-                            (g) => GastoCard(
+                            (g) {
+                            final categoria = _categoriasPorNome[g.categoria];
+                            return GastoCard(
                               gasto: g,
+                              categoriaEmoji: categoria?.icone,
+                              categoriaCorFundo: categoria?.corFundo != null
+                                  ? Color(int.parse('0xFF${categoria!.corFundo}'))
+                                  : null,
+                              categoriaCor: categoria?.cor != null
+                                  ? Color(int.parse('0xFF${categoria!.cor}'))
+                                  : null,
                               onTap: () async {
                                 await Navigator.push(
                                   context,
@@ -219,7 +242,8 @@ class _HistoricoScreenState extends State<HistoricoScreen>
                                 );
                                 _carregar();
                               },
-                            ),
+                            );
+                          },
                           ),
                           const SizedBox(height: 8),
                         ],

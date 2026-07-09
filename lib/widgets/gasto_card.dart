@@ -6,8 +6,18 @@ import '../utils/formatters.dart';
 class GastoCard extends StatelessWidget {
   final Gasto gasto;
   final VoidCallback? onTap;
+  final String? categoriaEmoji;
+  final Color? categoriaCorFundo;
+  final Color? categoriaCor;
 
-  const GastoCard({super.key, required this.gasto, this.onTap});
+  const GastoCard({
+    super.key,
+    required this.gasto,
+    this.onTap,
+    this.categoriaEmoji,
+    this.categoriaCorFundo,
+    this.categoriaCor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +39,17 @@ class GastoCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: info.corFundo,
+                color: categoriaCorFundo ?? info.corFundo,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(info.icone, color: info.cor, size: 20),
+              child: Center(
+                child: categoriaEmoji != null && categoriaEmoji!.trim().isNotEmpty
+                    ? Text(
+                        categoriaEmoji!,
+                        style: TextStyle(fontSize: 20, color: categoriaCor ?? info.cor),
+                      )
+                    : Icon(info.icone, color: categoriaCor ?? info.cor, size: 20),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

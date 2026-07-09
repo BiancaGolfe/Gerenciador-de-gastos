@@ -4,11 +4,13 @@ import 'database/usuario_helper.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'utils/tema.dart';
+import 'utils/notificacoes_meta.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
   await carregarTema();
+  await MetaNotificationService.initialize();
   runApp(const ControleGastosApp());
 }
 
