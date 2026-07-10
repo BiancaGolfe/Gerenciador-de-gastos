@@ -94,118 +94,122 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Botão criar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: GestureDetector(
-              onTap: _abrirCriar,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: cs.onSurface.withOpacity(0.12)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: cs.primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
+      body: CustomScrollView(
+        slivers: [
+          // Header button
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: GestureDetector(
+                onTap: _abrirCriar,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: cs.onSurface.withOpacity(0.12)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: cs.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.add, color: cs.primary, size: 18),
                       ),
-                      child: Icon(Icons.add, color: cs.primary, size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Criar categoria',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Criar categoria',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-
-          // Lista
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              'Minhas categorias',
-              style: TextStyle(
+          // Subtitle
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                'Minhas categorias',
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: cs.onSurface),
+                  color: cs.onSurface,
+                ),
+              ),
             ),
           ),
-          Expanded(
-            child: _categorias.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : LayoutBuilder(
+          // Grid of categories
+          _categorias.isEmpty
+              ? SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: const Center(child: CircularProgressIndicator()),
+                )
+              : SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverLayoutBuilder(
                     builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 600;
-                      return GridView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      final isMobile = constraints.crossAxisExtent < 600;
+                      final crossAxisCount = isMobile ? 2 : 8;
+                      final childAspectRatio = isMobile ? 2.5 : 1.2;
+                      return SliverGrid(
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isMobile ? 2 : 8,
+                          crossAxisCount: crossAxisCount,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: isMobile ? 2.5 : 1.2,
+                          childAspectRatio: childAspectRatio,
                         ),
-                        itemCount: _categorias.length,
-                        itemBuilder: (_, i) {
-                          final cat = _categorias[i];
-                          return GestureDetector(
-                            onTap: () => _abrirEditar(cat),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: cs.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: cs.onSurface.withOpacity(0.12)),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, i) {
+                            final cat = _categorias[i];
+                            return GestureDetector(
+                              onTap: () => _abrirEditar(cat),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: cs.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: cs.onSurface.withOpacity(0.12)),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color: cs.onSurface.withOpacity(0.07),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(cat.icone, style: const TextStyle(fontSize: 16)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        cat.nome,
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: cs.onSurface.withOpacity(0.07),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Center(
-                                      child: Text(cat.icone,
-                                          style: const TextStyle(fontSize: 16)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      cat.nome,
-                                      style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                          childCount: _categorias.length,
+                        ),
                       );
                     },
                   ),
-          ),
+                ),
         ],
       ),
     );
