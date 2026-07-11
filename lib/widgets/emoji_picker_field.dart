@@ -40,7 +40,7 @@ class _EmojiPickerFieldState extends State<EmojiPickerField> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Campo de texto com botão emoji
+        
         Row(
           children: [
             Expanded(
@@ -75,7 +75,7 @@ class _EmojiPickerFieldState extends State<EmojiPickerField> {
             ),
           ],
         ),
-        // Emoji picker
+        
         if (_showEmojiPicker)
           Container(
             height: 250,

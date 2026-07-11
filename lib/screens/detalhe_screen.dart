@@ -227,7 +227,7 @@ class _Divisor extends StatelessWidget {
       Divider(height: 1, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1));
 }
 
-// Linha especial para descrição que pode ser longa
+
 class _LinhaDetalheDescricao extends StatelessWidget {
   final String label;
   final String valor;

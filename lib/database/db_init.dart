@@ -80,7 +80,7 @@ Future<Database> _initDB() async {
     },
     onUpgrade: (db, oldVersion, newVersion) async {
       if (oldVersion < 2) {
-        // Migração v1 -> v2: adicionar usuario_id aos gastos
+        
         await db.execute('ALTER TABLE gastos ADD COLUMN usuario_id INTEGER');
         await db.execute(
             'UPDATE gastos SET usuario_id = 1 WHERE usuario_id IS NULL');
@@ -104,14 +104,14 @@ Future<Database> _initDB() async {
         await db.execute('ALTER TABLE gastos_new RENAME TO gastos');
       }
       if (oldVersion < 3) {
-        // Migração v2 -> v3: adicionar usuario_id às categorias
+        
         await db
             .execute('ALTER TABLE categorias ADD COLUMN usuario_id INTEGER');
-        // Deixar categorias fixas (fixa=1) com usuario_id=NULL, e demais com usuario_id=1
-        // (considera que antigas categorias criadas pertencem ao primeiro usuário)
+        
+        
       }
       if (oldVersion < 4) {
-        // Migração v3 -> v4: adicionar colunas de cor
+        
         try {
           await db.execute('ALTER TABLE categorias ADD COLUMN cor TEXT');
         } catch (_) {}

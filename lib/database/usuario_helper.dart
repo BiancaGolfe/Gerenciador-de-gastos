@@ -14,7 +14,7 @@ abstract class _UsuarioRepo {
   Future<void> encerrarSessao();
 }
 
-// ── Mobile: SQFlite ───────────────────────────────────────────────────────────
+
 
 class _SqfliteUsuarioRepo implements _UsuarioRepo {
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
@@ -76,7 +76,7 @@ class _SqfliteUsuarioRepo implements _UsuarioRepo {
   }
 }
 
-// ── Web: localStorage via shared_preferences ──────────────────────────────────
+
 
 class _WebUsuarioRepo implements _UsuarioRepo {
   static const _usuariosKey = 'usuarios_data';
@@ -152,7 +152,7 @@ class _WebUsuarioRepo implements _UsuarioRepo {
   }
 }
 
-// ── Fachada ───────────────────────────────────────────────────────────────────
+
 
 class UsuarioHelper {
   static final UsuarioHelper instance = UsuarioHelper._();

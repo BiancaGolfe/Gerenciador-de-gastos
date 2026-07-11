@@ -12,7 +12,6 @@ import '../utils/image_helper_web.dart'
     if (dart.library.io) '../utils/image_helper_stub.dart';
 import '../widgets/emoji_picker_field.dart';
 import '../widgets/color_picker_field.dart';
-import 'graficos_screen.dart';
 import '../utils/notifiers.dart';
 
 class CadastroScreen extends StatefulWidget {
@@ -107,7 +106,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
     );
   }
 
-  /// Converte double para string mascarada: 1050.5 → "1.050,50"
+  
   String _formatarValorInicial(double v) {
     final centavos = (v * 100).round().toString().padLeft(3, '0');
     final dec = centavos.substring(centavos.length - 2);
@@ -128,7 +127,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
     if (_categoriaSelecionada == null) return;
     setState(() => _salvando = true);
 
-    // Remove pontos de milhar e troca vírgula por ponto para parsear
+    
     final valorTexto =
         _valorController.text.replaceAll('.', '').replaceAll(',', '.');
     final valor = double.tryParse(valorTexto) ?? 0;
@@ -151,7 +150,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
       await DatabaseHelper.instance.inserir(gasto);
     }
 
-    // Notificar gráfico para atualizar
+    
     gastosNotifier.value++;
 
     if (!mounted) return;
@@ -166,7 +165,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
         onSalvar: (cat) async {
           final nova = await CategoriaHelper.instance.inserir(cat);
           await _carregarCategorias();
-          // Notificar outras telas que a lista de categorias mudou
+          
           categoriasNotifier.value++;
           if (!mounted) return;
           setState(() => _categoriaSelecionada = nova.nome);
@@ -287,7 +286,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
                         ),
                       );
                     }),
-                    // Botão criar categoria
+                    
                     GestureDetector(
                       onTap: _abrirCriarCategoria,
                       child: Container(
@@ -399,7 +398,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
   }
 }
 
-// ── Popup criar categoria inline ──────────────────────────────────────────────
+
 
 class _PopupCriarCategoriaInline extends StatefulWidget {
   final int usuarioId;
@@ -571,7 +570,7 @@ class _PopupCriarCategoriaInlineState
   }
 }
 
-// ── Área de foto ──────────────────────────────────────────────────────────────
+
 
 class _FotoArea extends StatelessWidget {
   final String? imagemPath;
@@ -638,7 +637,7 @@ class _FotoArea extends StatelessWidget {
   }
 }
 
-// ── Label ─────────────────────────────────────────────────────────────────────
+
 
 class _Label extends StatelessWidget {
   final String text;
@@ -655,22 +654,22 @@ class _Label extends StatelessWidget {
       );
 }
 
-// ── Máscara de moeda ──────────────────────────────────────────────────────────
-// Mantém o campo sempre como "1.234.567,89"
-// Máximo: 1.000.000.000.000,00 (13 dígitos inteiros + 2 decimais)
+
+
+
 
 class _MoedaFormatter extends TextInputFormatter {
-  static const int _maxIntDigits = 13; // 1 trilhão
+  static const int _maxIntDigits = 13; 
 
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    // Extrai apenas dígitos
+    
     String digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
 
-    // Limita a 15 dígitos no total (13 inteiros + 2 decimais)
+    
     if (digits.length > _maxIntDigits + 2) {
       digits = digits.substring(digits.length - (_maxIntDigits + 2));
     }
@@ -679,25 +678,25 @@ class _MoedaFormatter extends TextInputFormatter {
       return const TextEditingValue(text: '');
     }
 
-    // Garante pelo menos 3 dígitos para ter "0,00"
+    
     digits = digits.padLeft(3, '0');
 
-    // Separa decimais
+    
     final decimais = digits.substring(digits.length - 2);
     var inteiros = digits.substring(0, digits.length - 2);
 
-    // Remove zeros à esquerda nos inteiros (mas mantém pelo menos "0")
+    
     inteiros = inteiros.replaceFirst(RegExp(r'^0+'), '');
     if (inteiros.isEmpty) inteiros = '0';
 
-    // Insere pontos de milhar
+    
     final buffer = StringBuffer();
     for (int i = 0; i < inteiros.length; i++) {
       if (i > 0 && (inteiros.length - i) % 3 == 0) buffer.write('.');
       buffer.write(inteiros[i]);
     }
 
-    final resultado = '${buffer.toString()},${decimais}';
+    final resultado = '$buffer,$decimais';
     return TextEditingValue(
       text: resultado,
       selection: TextSelection.collapsed(offset: resultado.length),

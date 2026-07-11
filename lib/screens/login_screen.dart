@@ -63,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ── Formulário de Login ───────────────────────────────────────────────────────
+
 
 class _FormLogin extends StatefulWidget {
   final VoidCallback onAlternar;
@@ -181,7 +181,7 @@ class _FormLoginState extends State<_FormLogin> {
   }
 }
 
-// ── Formulário de Cadastro ────────────────────────────────────────────────────
+
 
 class _FormCadastro extends StatefulWidget {
   final VoidCallback onAlternar;
@@ -318,7 +318,7 @@ class _FormCadastroState extends State<_FormCadastro> {
   }
 }
 
-// ── Widgets auxiliares ────────────────────────────────────────────────────────
+
 
 class _Label extends StatelessWidget {
   final String text;

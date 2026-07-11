@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class ColorPickerField extends StatefulWidget {
-  final String? selectedColor; // em formato hex (sem #)
+  final String? selectedColor; 
   final ValueChanged<String?> onColorChanged;
   final String hint;
 
@@ -21,18 +21,18 @@ class _ColorPickerFieldState extends State<ColorPickerField> {
   late TextEditingController _colorController;
 
   static const List<String> predefinedColors = [
-    'FF0000', // Vermelho
-    '00FF00', // Verde
-    '0000FF', // Azul
-    'FFFF00', // Amarelo
-    'FF00FF', // Magenta
-    '00FFFF', // Ciano
-    'FFA500', // Laranja
-    'FF1493', // Rosa
-    '9370DB', // Roxo
-    '4169E1', // Azul Real
-    '20B2AA', // Verde Escuro
-    'FF6347', // Tomate
+    'FF0000', 
+    '00FF00', 
+    '0000FF', 
+    'FFFF00', 
+    'FF00FF', 
+    '00FFFF', 
+    'FFA500', 
+    'FF1493', 
+    '9370DB', 
+    '4169E1', 
+    '20B2AA', 
+    'FF6347', 
   ];
 
   @override
@@ -161,7 +161,7 @@ class _ColorPickerFieldState extends State<ColorPickerField> {
               ),
             ),
             const SizedBox(width: 8),
-            // Preview da cor
+            
             Container(
               width: 50,
               height: 50,

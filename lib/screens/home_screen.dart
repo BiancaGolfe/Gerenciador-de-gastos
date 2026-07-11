@@ -54,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _abaSelecionada,
         onTap: (i) {
           setState(() => _abaSelecionada = i);
-          // Notificar histórico quando selecionado
+          
           if (i == 1) {
             categoriasNotifier.value++;
           }
@@ -106,7 +106,7 @@ class _HomeTabState extends State<_HomeTab> {
   void initState() {
     super.initState();
     mesSelecionado.addListener(_onMesChanged);
-    // Atualizar Home quando houver mudanças nos gastos
+    
     gastosNotifier.addListener(_carregar);
     _carregar();
   }
@@ -241,7 +241,7 @@ class _HomeTabState extends State<_HomeTab> {
           ],
         ),
         actions: [
-          // Botão tema escuro/claro
+          
           ValueListenableBuilder<bool>(
             valueListenable: temaEscuro,
             builder: (_, escuro, __) => IconButton(
@@ -251,7 +251,7 @@ class _HomeTabState extends State<_HomeTab> {
               onPressed: () => temaEscuro.value = !temaEscuro.value,
             ),
           ),
-          // Botão escolher mês
+          
           IconButton(
             icon: const Icon(Icons.calendar_month_outlined),
             onPressed: () async {
@@ -267,7 +267,7 @@ class _HomeTabState extends State<_HomeTab> {
               }
             },
           ),
-          // Avatar / Entrar
+          
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: widget.usuario == null
@@ -467,7 +467,7 @@ class _CartaoResumo extends StatelessWidget {
                       children: const [
                         Icon(Icons.flag_outlined, size: 18),
                         SizedBox(width: 8),
-                        Text('Definir meta'),
+                        Text('Definir limite'),
                       ],
                     ),
                   ),
@@ -478,7 +478,7 @@ class _CartaoResumo extends StatelessWidget {
                         children: [
                           Icon(Icons.clear, size: 18),
                           SizedBox(width: 8),
-                          Text('Remover meta'),
+                          Text('Remover limite'),
                         ],
                       ),
                     ),
@@ -499,10 +499,10 @@ class _CartaoResumo extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               status.atingida
-                  ? 'Você já passou da meta mensal.'
+                  ? 'Você já passou do seu limite mensal.'
                   : status.perto
-                      ? 'Você está perto do limite da meta.'
-                      : 'Meta mensal definida.',
+                      ? 'Você está perto do limite do limite.'
+                      : 'Limite mensal definida.',
               style: TextStyle(color: corAlerta, fontSize: 13, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
@@ -513,7 +513,7 @@ class _CartaoResumo extends StatelessWidget {
           ] else ...[
             const SizedBox(height: 12),
             const Text(
-              'Use o botão de ajustes para criar uma meta mensal.',
+              'Use o botão de ajustes para criar um limite mensal.',
               style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ],

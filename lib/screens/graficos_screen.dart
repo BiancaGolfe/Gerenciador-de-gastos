@@ -86,7 +86,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
     mesSelecionado.addListener(_onMesChanged);
     _carregar();
     _carregarCategorias();
-    // Escutar mudanças de gastos e categorias
+    
     gastosNotifier.addListener(_carregar);
     categoriasNotifier.addListener(_carregarCategorias);
   }
@@ -578,7 +578,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Seção mensal: mostra mensagem se não houver gastos no mês
+          
           if (_gastos.isEmpty)
             _CartaoSecao(
               titulo: 'Por categoria',
@@ -605,7 +605,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
               ),
             ),
           const SizedBox(height: 16),
-          // Distribuição mensal (apenas quando há dados)
+          
           if (porCat.isNotEmpty)
             _CartaoSecao(
               titulo: 'Distribuição',
@@ -629,7 +629,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
                     ),
             ),
           const SizedBox(height: 16),
-          // Seção anual: sempre visível
+          
           _CartaoSecao(
             titulo: 'Distribuição anual',
             trailing: _botaoTipoGrafico(

@@ -33,7 +33,7 @@ class _HistoricoScreenState extends State<HistoricoScreen>
     WidgetsBinding.instance.addObserver(this);
     mesSelecionado.addListener(_onMesChanged);
     _carregar();
-    // Escutar mudanças de gastos para atualizar a barra automaticamente
+    
     gastosNotifier.addListener(_carregar);
   }
 
@@ -68,16 +68,19 @@ class _HistoricoScreenState extends State<HistoricoScreen>
   }
 
   Future<void> _carregar() async {
-    List<Gasto> gastos;
-    if (_filtro == 'Todos') {
-      gastos = await _db.buscarPorMes(
-          _selecionado.year, _selecionado.month, widget.usuarioId);
-    } else {
-      gastos = await _db.buscarPorCategoria(_filtro, widget.usuarioId);
-    }
+    final todosGastosDoMes = await _db.buscarPorMes(
+      _selecionado.year,
+      _selecionado.month,
+      widget.usuarioId,
+    );
+
+    final gastos = _filtro == 'Todos'
+        ? todosGastosDoMes
+        : todosGastosDoMes.where((g) => g.categoria == _filtro).toList();
+
     if (!mounted) return;
     final categorias = LinkedHashSet<String>.from(
-      gastos.map((g) => g.categoria).where((c) => c.trim().isNotEmpty),
+      todosGastosDoMes.map((g) => g.categoria).where((c) => c.trim().isNotEmpty),
     ).toList();
     await _carregarCategorias();
 

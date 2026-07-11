@@ -4,10 +4,10 @@ class Categoria {
   final int? id;
   final int? usuarioId;
   final String nome;
-  final String icone; // emoji ou texto
-  final bool fixa; // categorias padrão não podem ser excluídas
-  final String? cor; // cor em formato hex (ex: "FF0000" para vermelho)
-  final String? corFundo; // cor de fundo em formato hex
+  final String icone; 
+  final bool fixa; 
+  final String? cor; 
+  final String? corFundo; 
 
   const Categoria({
     this.id,

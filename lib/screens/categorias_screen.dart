@@ -5,7 +5,7 @@ import '../utils/notifiers.dart';
 import '../widgets/emoji_picker_field.dart';
 import '../widgets/color_picker_field.dart';
 
-// Helper de decoração utilizado pelos popups
+
 InputDecoration _inputDec(BuildContext context, String hint) {
   final cs = Theme.of(context).colorScheme;
   return InputDecoration(
@@ -96,7 +96,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
       ),
       body: CustomScrollView(
         slivers: [
-          // Header button
+          
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -131,7 +131,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
               ),
             ),
           ),
-          // Subtitle
+          
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -145,7 +145,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
               ),
             ),
           ),
-          // Grid of categories
+          
           _categorias.isEmpty
               ? SliverFillRemaining(
                   hasScrollBody: false,
@@ -216,7 +216,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
   }
 }
 
-// ── Popup Criar ───────────────────────────────────────────────────────────────
+
 
 class _PopupCriarCategoria extends StatefulWidget {
   final int usuarioId;
@@ -372,7 +372,7 @@ class _PopupCriarCategoriaState extends State<_PopupCriarCategoria> {
   }
 }
 
-// ── Popup Editar ──────────────────────────────────────────────────────────────
+
 
 class _PopupEditarCategoria extends StatefulWidget {
   final Categoria categoria;
